@@ -53,17 +53,21 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'server_error' });
 });
 
-if (require.main === module) {
+// Boot the HTTP server (optionally creating/upgrading the schema first on
+// managed/no-shell hosts). Called by the root index.js entry point and when
+// this file is run directly; the test suite imports `app` without starting it.
+function start() {
   const port = Number(process.env.PORT || 3000);
-  const start = () => app.listen(port, () => console.log('Mii Kitchens Hub listening on :' + port));
+  const listen = () => app.listen(port, () => console.log('Mii Kitchens Hub listening on :' + port));
   if (process.env.AUTO_MIGRATE === '1') {
-    // Managed hosts (no shell): create/upgrade the tables on boot, then serve.
-    require('./migrate').runMigrations()
-      .then(() => { console.log('Schema applied (AUTO_MIGRATE).'); start(); })
-      .catch((e) => { console.error('AUTO_MIGRATE failed (starting anyway):', e.message); start(); });
-  } else {
-    start();
+    return require('./migrate').runMigrations()
+      .then(() => { console.log('Schema applied (AUTO_MIGRATE).'); listen(); })
+      .catch((e) => { console.error('AUTO_MIGRATE failed (starting anyway):', e.message); listen(); });
   }
+  return listen();
 }
 
 module.exports = app;
+module.exports.start = start;
+
+if (require.main === module) start();

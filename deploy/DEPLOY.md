@@ -18,9 +18,8 @@ tables on boot and lets you set the first password from the browser.
 1. **Create a MySQL database** in hPanel (note the host, db name, user, password).
 2. **Import the repo** in the Node.js / Git deployment screen:
    - Repository: `andremeloni1-cmyk/mii-kitchens-`, branch `main`.
-   - **Startup file / command: `server/index.js`** (or `npm start`). There is no
-     root `index.js`, so the default won't work — set this.
-   - Node version: 20+.
+   - Framework: **Express** (auto-detected). Start command **`npm start`**
+     (runs the root `index.js`, which boots the server). Node version: 20+.
 3. **Set environment variables** (from `.env.sample`):
    - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — your MySQL.
    - `SESSION_SECRET`, `SYNC_SECRET` — long random strings.
