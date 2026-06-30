@@ -4,10 +4,10 @@
   "private": true,
   "description": "Mii Kitchens Hub — internal org dashboard (jobs, drafters, installers, meetings, maintenance). Node/Express + MySQL, Google Calendar sync via Apps Script.",
   "type": "commonjs",
-  "main": "server/index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
+    "start": "node index.js",
+    "dev": "node --watch index.js",
     "migrate": "node server/migrate.js",
     "test": "node --test tests/*.test.js"
   },
