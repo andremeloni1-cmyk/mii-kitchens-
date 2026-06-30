@@ -1,0 +1,20 @@
+[Unit]
+Description=Mii Kitchens Hub (Node/Express)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+# Adjust User and WorkingDirectory to where you cloned the repo on the VPS.
+User=mii
+WorkingDirectory=/opt/mii-kitchens-hub
+EnvironmentFile=/opt/mii-kitchens-hub/.env
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

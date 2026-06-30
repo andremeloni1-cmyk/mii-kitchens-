@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Maintenance Reports — Mii Kitchens Hub</title>
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--ink:#1f2430;--muted:#6b7280;--line:#e5e7eb;--danger:#e23b3b;--ok:#1a7f37}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;position:sticky;top:0;z-index:20}
+  h1{font-size:18px;margin:0 0 8px}
+  a.navlink{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#fff}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+  .spacer{flex:1}
+  .who{font-size:12px;color:var(--muted)}
+  select,input[type=text],input[type=email],input[type=date],textarea{font:inherit;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:#fff;color:var(--ink)}
+  select{min-width:260px}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;color:var(--ink)}
+  button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  button.del{color:var(--danger);border-color:#f3c0c0}
+  main{padding:16px;max-width:760px;margin:0 auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+  .kvrow{display:flex;gap:8px;font-size:13px;margin:4px 0}
+  .kvrow b{min-width:110px;color:var(--muted);font-weight:600}
+  .flabel{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  textarea{width:100%;min-height:54px;resize:vertical}
+  .rcard{border-top:1px solid var(--line);padding-top:10px;margin-top:14px}
+  .rcard:first-child{border-top:0;padding-top:0;margin-top:0}
+  .rhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .rhead h3{font-size:15px;margin:0;flex:1}
+  .chk{display:flex;align-items:center;gap:6px;font-size:13px;padding:3px 0;cursor:pointer}
+  .items{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin:6px 0}
+  @media (max-width:560px){.items{grid-template-columns:1fr}}
+  .complete{font-weight:600}
+  .addroom input{flex:1;min-width:180px}
+  .actions{margin-top:16px;align-items:center}
+  .empty{color:var(--muted);font-size:13px;padding:20px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧾 Maintenance Reports</h1>
+  <div class="row">
+    <a class="navlink" href="index.html">← Hub</a>
+    <span class="spacer"></span>
+    <span class="who" id="whoami"></span>
+    <button id="logout">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div class="row">
+      <label for="jobSelect"><b>Job</b></label>
+      <select id="jobSelect"></select>
+      <button id="resetBtn" title="Discard edits and regenerate this report from the job scope">↺ Reset template</button>
+    </div>
+    <p class="empty" id="noJobs" style="display:none">No installed jobs found yet. Jobs move into install/maintenance stage on the Hub.</p>
+  </div>
+  <div id="reportArea"></div>
+</main>
+
+<script src="/shared/rooms.js"></script>
+<script src="app.js"></script>
+<script>
+const R = window.HubRooms;
+let ME=null, JOBS=[], currentJob=null, currentReport=null, saveTimer=null;
+
+function isoToday(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function parseD(s){const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);}
+function fmt(dt){return dt.toLocaleDateString("en-AU",{day:"numeric",month:"short"});}
+function fmtRange(j){if(!j.start_date)return'—';const a=fmt(parseD(j.start_date)),b=fmt(parseD(j.end_date||j.start_date));return j.start_date===j.end_date?a:(a+"–"+b);}
+
+// Jobs eligible for a maintenance report: those that have reached install.
+function pickerJobs(){
+  const stages={install:1,maintenance:1,complete:1};
+  return JOBS.filter(j=>stages[j.stage]).sort((a,b)=>(a.end_date||'')<(b.end_date||'')?1:(a.end_date||'')>(b.end_date||'')?-1:0);
+}
+
+function freshReport(job){
+  return {
+    technician_name: ME.full_name || "",
+    report_date: isoToday(),
+    send_to: "",
+    rooms: R.parseRooms(job).map(R.freshRoom),
+    overall_notes: "",
+    status: "draft"
+  };
+}
+
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveReport, 600);
+}
+async function saveReport(){
+  if(!currentJob||!currentReport) return;
+  try{
+    await Api.post('/reports', Object.assign({job_reference:currentJob.job_reference}, currentReport));
+  }catch(e){ /* keep editing; will retry on next change */ }
+}
+
+async function populateJobSelect(){
+  const jobs=pickerJobs();
+  const sel=document.getElementById("jobSelect");
+  document.getElementById("noJobs").style.display=jobs.length?"none":"";
+  if(!jobs.length){ sel.innerHTML=""; document.getElementById("reportArea").innerHTML=""; return; }
+  sel.innerHTML=jobs.map(j=>`<option value="${esc(j.job_reference)}">${esc(j.job_reference)} — ${esc(j.client_name)} · ${fmtRange(j)}</option>`).join("");
+  loadJob(sel.value);
+}
+
+async function loadJob(ref){
+  currentJob=JOBS.find(j=>j.job_reference===ref);
+  if(!currentJob) return;
+  try{
+    const r=await Api.get('/reports?job_reference='+encodeURIComponent(ref));
+    currentReport = r.report ? normalize(r.report) : freshReport(currentJob);
+  }catch(e){ currentReport=freshReport(currentJob); }
+  render();
+}
+function normalize(rep){
+  return {
+    technician_name: rep.technician_name||ME.full_name||"",
+    report_date: rep.report_date||isoToday(),
+    send_to: rep.send_to||"",
+    rooms: (rep.rooms&&rep.rooms.length)?rep.rooms:R.parseRooms(currentJob).map(R.freshRoom),
+    overall_notes: rep.overall_notes||"",
+    status: rep.status||"draft"
+  };
+}
+
+function resetReport(){
+  if(!currentJob) return;
+  if(!confirm("Reset this job's report to a fresh template? This discards current edits.")) return;
+  currentReport=freshReport(currentJob); saveReport(); render();
+}
+
+// field mutation without full re-render (keeps focus)
+function setField(name,val){ currentReport[name]=val; scheduleSave(); }
+function itemDone(ri,ii,val){ currentReport.rooms[ri].items[ii].done=val; scheduleSave(); }
+function roomComplete(ri,val){ currentReport.rooms[ri].complete=val; scheduleSave(); }
+function roomField(ri,field,val){ currentReport.rooms[ri][field]=val; scheduleSave(); }
+function addRoom(){
+  const inp=document.getElementById("newRoomName"); const v=inp.value.trim(); if(!v)return;
+  currentReport.rooms.push(R.freshRoom(v)); inp.value=""; saveReport(); render();
+}
+function removeRoom(ri){ if(!confirm("Remove this room?"))return; currentReport.rooms.splice(ri,1); saveReport(); render(); }
+
+function render(){
+  const job=currentJob, report=currentReport;
+  let html=`<div class="card">
+    <div class="kvrow"><b>Job</b><span>${esc(job.job_reference)} — ${esc(job.client_name)}</span></div>
+    <div class="kvrow"><b>Address</b><span>${esc(job.site_address||'')}</span></div>
+    <div class="kvrow"><b>Install dates</b><span>${fmtRange(job)} · ${job.days_required||1} day(s)</span></div>
+    <div class="row">
+      <label class="flabel" style="margin:0">Technician&nbsp;</label>
+      <input type="text" value="${esc(report.technician_name)}" oninput="setField('technician_name',this.value)" placeholder="Your name">
+      <label class="flabel" style="margin:0">Report date&nbsp;</label>
+      <input type="date" value="${esc(report.report_date)}" oninput="setField('report_date',this.value)">
+    </div>
+    <div class="row">
+      <label class="flabel" style="margin:0">Send to&nbsp;</label>
+      <input type="email" value="${esc(report.send_to)}" oninput="setField('send_to',this.value)" placeholder="company contact email" style="flex:1">
+    </div>
+  </div>`;
+  html+=`<div class="card">`+report.rooms.map((r,ri)=>roomCardHTML(r,ri)).join("")+`
+    <div class="row addroom" style="margin-top:14px">
+      <input type="text" id="newRoomName" placeholder="Add another room (e.g. Butler's Pantry)">
+      <button onclick="addRoom()">+ Add room</button>
+    </div></div>`;
+  html+=`<div class="card">
+    <label class="flabel" style="margin-top:0">Overall notes (optional)</label>
+    <textarea oninput="setField('overall_notes',this.value)" placeholder="Anything else worth telling the office...">${esc(report.overall_notes)}</textarea>
+  </div>`;
+  html+=`<div class="card row actions">
+    <button class="primary" onclick="openPrintView()">🖨️ Preview / Save as PDF</button>
+    <button onclick="copyText()">📋 Copy report text</button>
+    <button onclick="emailToCompany()">✉️ Email</button>
+    <span class="spacer"></span>
+    <button onclick="markSent()">Mark as sent</button>
+  </div>
+  <p id="statusBadge" style="font-size:12px;color:var(--muted);padding:0 4px"></p>`;
+  document.getElementById("reportArea").innerHTML=html;
+  updateStatusBadge();
+}
+
+function roomCardHTML(r,ri){
+  const itemsHtml=r.items.map((it,ii)=>
+    `<label class="chk"><input type="checkbox" ${it.done?"checked":""} onchange="itemDone(${ri},${ii},this.checked)"> ${esc(it.label)}</label>`).join("");
+  return `<div class="rcard">
+    <div class="rhead">
+      <h3>${esc(r.name)}</h3>
+      <label class="chk complete"><input type="checkbox" ${r.complete?"checked":""} onchange="roomComplete(${ri},this.checked)"> Room complete</label>
+      <button class="del" onclick="removeRoom(${ri})">Remove</button>
+    </div>
+    <div class="items">${itemsHtml}</div>
+    <label class="flabel">Defects / snags</label>
+    <textarea oninput="roomField(${ri},'defects',this.value)" placeholder="Any defects, snags or follow-up...">${esc(r.defects||'')}</textarea>
+    <label class="flabel">Photos</label>
+    <input type="text" oninput="roomField(${ri},'photosNote',this.value)" placeholder="e.g. 6 photos taken, saved to job folder" value="${esc(r.photosNote||'')}">
+  </div>`;
+}
+
+function updateStatusBadge(){
+  const el=document.getElementById("statusBadge"); if(!el)return;
+  el.textContent=currentReport.status==="sent"?"✅ Marked sent.":"📝 Draft — saved automatically.";
+}
+
+// ---- report text / print / email ----
+function buildPlainText(report,job){
+  const lines=["MAINTENANCE COMPLETION REPORT",""];
+  lines.push("Job: "+job.job_reference+" — "+job.client_name);
+  lines.push("Site address: "+(job.site_address||''));
+  lines.push("Install dates: "+(job.start_date||'')+" to "+(job.end_date||''));
+  lines.push("Technician: "+(report.technician_name||""));
+  lines.push("Report date: "+(report.report_date||""),"");
+  report.rooms.forEach(r=>{
+    lines.push("— "+r.name+" ["+(r.complete?"COMPLETE":"INCOMPLETE")+"]");
+    r.items.forEach(it=>lines.push("   "+(it.done?"[x]":"[ ]")+" "+it.label));
+    if(r.defects)lines.push("   Defects/snags: "+r.defects);
+    if(r.photosNote)lines.push("   Photos: "+r.photosNote);
+    lines.push("");
+  });
+  if(report.overall_notes){lines.push("Overall notes: "+report.overall_notes,"");}
+  lines.push("— Generated via Mii Kitchens Hub");
+  return lines.join("\n");
+}
+function buildEmailSummary(report,job){
+  const lines=["Hi,",""];
+  lines.push("Maintenance report for "+job.job_reference+" — "+job.client_name+" ("+(job.site_address||'')+").");
+  lines.push("Install dates: "+(job.start_date||'')+" to "+(job.end_date||'')+".","");
+  report.rooms.forEach(r=>lines.push(r.name+": "+(r.complete?"Complete":"Incomplete")+(r.defects?(" — Snags: "+r.defects):"")));
+  if(report.overall_notes){lines.push("","Notes: "+report.overall_notes);}
+  lines.push("","Full checklist attached as PDF.","","Regards,",report.technician_name||"");
+  return lines.join("\n");
+}
+function buildPrintHTML(report,job){
+  const roomsHtml=report.rooms.map(r=>{
+    const itemsHtml=r.items.map(it=>`<div class="pitem">${it.done?"☑":"☐"} ${esc(it.label)}</div>`).join("");
+    return `<div class="proom"><h3>${esc(r.name)} — <span class="${r.complete?"ok":"no"}">${r.complete?"COMPLETE":"INCOMPLETE"}</span></h3>
+      <div class="pitems">${itemsHtml}</div>
+      ${r.defects?`<p><b>Defects / snags:</b> ${esc(r.defects)}</p>`:""}
+      ${r.photosNote?`<p><b>Photos:</b> ${esc(r.photosNote)}</p>`:""}</div>`;
+  }).join("");
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Maintenance Report — ${esc(job.job_reference)}</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;color:#1f2430;margin:32px}h1{font-size:20px;margin-bottom:4px}
+    h2{font-size:14px;color:#6b7280;margin-top:0;font-weight:normal}table.meta{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+    table.meta td{padding:4px 8px;border-bottom:1px solid #e5e7eb}table.meta td.k{color:#6b7280;width:140px}
+    .proom{margin:18px 0;padding-top:10px;border-top:1px solid #e5e7eb}.proom h3{font-size:15px;margin:0 0 6px}
+    .ok{color:#1a7f37}.no{color:#b26a00}.pitems{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px}.pitem{width:46%}
+    p{font-size:13px}footer{margin-top:24px;font-size:11px;color:#9aa0aa}</style></head><body>
+  <h1>Maintenance Completion Report</h1><h2>Mii Kitchens</h2>
+  <table class="meta">
+    <tr><td class="k">Job reference</td><td>${esc(job.job_reference)}</td></tr>
+    <tr><td class="k">Client</td><td>${esc(job.client_name)}</td></tr>
+    <tr><td class="k">Site address</td><td>${esc(job.site_address||'')}</td></tr>
+    <tr><td class="k">Install dates</td><td>${esc(job.start_date||'')} to ${esc(job.end_date||'')} (${job.days_required||1} day(s))</td></tr>
+    <tr><td class="k">Technician</td><td>${esc(report.technician_name)}</td></tr>
+    <tr><td class="k">Report date</td><td>${esc(report.report_date)}</td></tr>
+  </table>${roomsHtml}
+  ${report.overall_notes?`<p><b>Overall notes:</b> ${esc(report.overall_notes)}</p>`:""}
+  <footer>Generated via Mii Kitchens Hub on ${new Date().toLocaleString("en-AU")}.</footer></body></html>`;
+}
+function openPrintView(){
+  const w=window.open("","_blank");
+  if(!w){alert("Pop-up blocked — allow pop-ups to preview/print.");return;}
+  w.document.write(buildPrintHTML(currentReport,currentJob)); w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(e){}},300);
+}
+function copyText(){
+  navigator.clipboard.writeText(buildPlainText(currentReport,currentJob)).then(
+    ()=>alert("Report text copied."),()=>alert("Couldn't copy — use Save as PDF instead."));
+}
+function emailToCompany(){
+  if(!currentReport.send_to){alert('Add a "Send to" email first.');return;}
+  const subject="Maintenance Report — "+currentJob.job_reference+" — "+currentJob.client_name;
+  window.location.href="mailto:"+encodeURIComponent(currentReport.send_to)+"?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(buildEmailSummary(currentReport,currentJob));
+  markSent();
+}
+async function markSent(){
+  if(!currentReport)return;
+  currentReport.status="sent"; await saveReport(); updateStatusBadge();
+}
+
+document.getElementById("resetBtn").onclick=resetReport;
+document.getElementById("jobSelect").onchange=e=>loadJob(e.target.value);
+document.getElementById("logout").onclick=logout;
+
+(async function boot(){
+  let me; try{ me=await Api.get('/auth/me'); }catch(e){ return; }
+  ME=me.user;
+  document.getElementById('whoami').textContent=ME.full_name+' ('+ME.role+')';
+  const jb=await Api.get('/jobs'); JOBS=jb.jobs;
+  populateJobSelect();
+})();
+</script>
+</body>
+</html>

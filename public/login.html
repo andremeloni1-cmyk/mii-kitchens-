@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sign in — Mii Kitchens Hub</title>
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--ink:#1f2430;--muted:#6b7280;--line:#e5e7eb;--danger:#e23b3b}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+  h1{font-size:20px;margin:0 0 2px}
+  p.sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
+  input{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--ink)}
+  button{width:100%;margin-top:18px;font:inherit;cursor:pointer;border:0;background:var(--ink);color:#fff;border-radius:8px;padding:10px;font-weight:600}
+  .err{color:var(--danger);font-size:13px;margin-top:12px;min-height:18px}
+</style>
+</head>
+<body>
+  <form class="card" id="form">
+    <h1>🍳 Mii Kitchens Hub</h1>
+    <p class="sub">Sign in with your work email.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <div class="err" id="err"></div>
+  </form>
+<script>
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = document.getElementById('err');
+  err.textContent = '';
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value
+      })
+    });
+    if (res.ok) { location.href = 'index.html'; return; }
+    err.textContent = res.status === 401 ? 'Wrong email or password.' : 'Sign-in failed. Try again.';
+  } catch (_) { err.textContent = 'Network error. Try again.'; }
+});
+</script>
+</body>
+</html>
