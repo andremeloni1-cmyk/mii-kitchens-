@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mii Kitchens Hub</title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --ink:#1f2430; --muted:#6b7280; --line:#e5e7eb; --danger:#e23b3b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;position:sticky;top:0;z-index:20}
+  h1{font-size:18px;margin:0 0 8px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .spacer{flex:1}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;color:var(--ink)}
+  button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+  button.active{background:#eef2ff;border-color:#c7d2fe}
+  .navlink{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#fff}
+  .who{font-size:12px;color:var(--muted)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  .flt{font-size:12px;padding:4px 9px}
+  .flt .dot{width:8px;height:8px}
+  main{padding:16px;max-width:1100px;margin:0 auto}
+  .cal{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .dow,.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 64px}
+  .dow div{padding:8px;font-size:11px;color:var(--muted);text-align:center;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.04em}
+  .dow div:last-child{color:#9aa0aa}
+  .cell{min-height:96px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px;position:relative;min-width:0;overflow:hidden}
+  .cell.out{background:#fafbfc;color:#c2c7d0}
+  .cell.today{box-shadow:inset 0 0 0 2px #c7d2fe}
+  .cell.conflict{background:#fff4f4}
+  .cell.conflict::after{content:"⚠ clash";position:absolute;top:3px;right:4px;font-size:9px;color:var(--danger);font-weight:700}
+  .daynum{font-size:11px;color:var(--muted);margin:2px}
+  .chip{font-size:10px;line-height:1.25;color:#fff;border-radius:5px;padding:2px 5px;margin:2px 0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip.meet{color:var(--ink);background:#fff !important;border:1px dashed #c7c9d0}
+  .wtot{padding:6px 4px;font-size:11px;color:var(--muted);text-align:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fafbfc}
+  .wtot b{display:block;color:var(--ink);font-size:14px}
+  .group{margin:18px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .job{background:var(--card);border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:10px 12px;margin:8px 0;display:flex;gap:10px;align-items:flex-start}
+  .job .meta{flex:1;min-width:0}
+  .job h3{margin:0 0 2px;font-size:15px}
+  .job .sub{font-size:12px;color:var(--muted);margin:1px 0}
+  .badge{display:inline-block;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+  .b-pending{background:#fff7e6;color:#b26a00}
+  .b-approved{background:#e7f6ec;color:#1a7f37}
+  .b-scheduled{background:#eef2ff;color:#3a48b5}
+  .b-declined{background:#fde2e2;color:#b42318}
+  .b-stage{background:#eef2ff;color:#3a48b5}
+  .acts{display:flex;flex-direction:column;gap:6px}
+  .acts button{font-size:12px;padding:5px 8px}
+  .pdf{font-size:12px}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .scrim.open{display:flex}
+  .modal{background:#fff;border-radius:12px;max-width:540px;width:100%;padding:18px;max-height:90vh;overflow:auto}
+  .modal h2{margin:0 0 4px;font-size:18px}
+  .kv{display:flex;gap:8px;font-size:13px;margin:6px 0}
+  .kv b{min-width:96px;color:var(--muted);font-weight:600}
+  .note{background:#fff8e6;border:1px solid #ffe8a3;border-radius:8px;padding:8px;font-size:12px;margin-top:8px}
+  .assignbox{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:12px;background:#fafbff}
+  .assignbox h4{margin:0 0 8px;font-size:13px}
+  .assignbox select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:5px 7px;margin:0 6px 6px 0}
+  a{color:#2563eb}
+  .updated{font-size:11px;color:#9aa0aa;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍳 Mii Kitchens Hub</h1>
+  <div class="row">
+    <button id="prev">‹</button>
+    <button id="today">Today</button>
+    <button id="next">›</button>
+    <strong id="label" style="min-width:150px"></strong>
+    <span class="spacer"></span>
+    <button id="vcal" class="active">Calendar</button>
+    <button id="vlist">Agenda</button>
+    <a class="navlink" href="maintenance.html">🧾 Maintenance</a>
+    <span class="who" id="whoami"></span>
+    <button id="logout" title="Sign out">Sign out</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <label style="font-size:12px;color:var(--muted)">Team:</label>
+    <span id="empFilters"></span>
+  </div>
+  <div class="row" style="margin-top:6px">
+    <label style="font-size:12px;color:var(--muted)">Stage:</label>
+    <span id="stageFilters"></span>
+  </div>
+  <div class="legend">
+    <span id="empLegend"></span>
+    <span style="color:var(--danger)">⚠ = scheduling clash</span>
+    <span><span class="chip meet" style="display:inline-block">▦</span> dashed = meeting</span>
+  </div>
+</header>
+
+<main>
+  <div id="calview"></div>
+  <div id="listview" style="display:none"></div>
+  <p class="updated" id="stamp"></p>
+</main>
+
+<div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
+
+<script src="/shared/calendar.js"></script>
+<script src="app.js"></script>
+<script>
+const C = window.HubCalendar;
+let ME = null, EMPLOYEES = [], COLOR = {}, NAME = {}, JOBS = [], MEETINGS = [];
+let cur = new Date(); cur.setHours(0,0,0,0); cur.setDate(1);
+let view = "cal";
+let empFilter = new Set(), stageFilter = new Set();
+
+function colorForJob(j){
+  return COLOR[j.assigned_installer] || COLOR[j.assigned_drafter] || STAGE_COLOR[j.stage] || '#9aa0aa';
+}
+function shortName(j){ return (j.job_reference||'') + ' ' + (j.client_name||''); }
+
+function visibleJobs(){
+  return JOBS.filter(j=>{
+    const stageOk = stageFilter.has(j.stage);
+    const assignees = [j.assigned_drafter, j.assigned_installer].filter(Boolean);
+    const empOk = assignees.length
+      ? assignees.some(c=>empFilter.has(c))
+      : empFilter.has('__unassigned__');
+    return stageOk && empOk;
+  });
+}
+function meetingsByDay(){
+  const m={};
+  MEETINGS.forEach(mt=>{
+    const day=(mt.starts_at||'').slice(0,10);
+    if(day) (m[day]=m[day]||[]).push(mt);
+  });
+  return m;
+}
+
+function render(){
+  document.getElementById("calview").style.display=view==="cal"?"":"none";
+  document.getElementById("listview").style.display=view==="list"?"":"none";
+  document.getElementById("vcal").classList.toggle("active",view==="cal");
+  document.getElementById("vlist").classList.toggle("active",view==="list");
+  document.getElementById("label").textContent=cur.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
+  view==="cal"?renderCal():renderList();
+  document.getElementById("stamp").textContent="Showing "+visibleJobs().length+" jobs • "+MEETINGS.length+" meetings • signed in as "+ME.full_name+".";
+}
+
+function renderCal(){
+  const list=visibleJobs(), dm=C.dayMap(list), mm=meetingsByDay();
+  let start=new Date(cur); let wd=(start.getDay()+6)%7; start.setDate(start.getDate()-wd);
+  const today=C.iso(new Date());
+  let html='<div class="cal"><div class="dow"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div><div>Jobs</div></div>';
+  for(let w=0;w<6;w++){
+    html+='<div class="week">';
+    let weekJobDays=0;
+    for(let d=0;d<7;d++){
+      const cd=new Date(start); cd.setDate(start.getDate()+w*7+d);
+      const k=C.iso(cd), inMonth=cd.getMonth()===cur.getMonth();
+      const items=dm[k]||[], meets=mm[k]||[];
+      if(items.length) weekJobDays++;
+      let cls="cell"+(inMonth?"":" out")+(k===today?" today":"")+(items.length>=2?" conflict":"");
+      html+='<div class="'+cls+'"><div class="daynum">'+cd.getDate()+'</div>';
+      items.slice(0,4).forEach(j=>{
+        html+='<div class="chip" style="background:'+colorForJob(j)+'" onclick="openJob(\''+esc(j.job_reference)+'\')" title="'+esc(j.client_name)+'">'+esc(shortName(j))+'</div>';
+      });
+      if(items.length>4) html+='<div class="daynum">+'+(items.length-4)+' more</div>';
+      meets.slice(0,2).forEach(mt=>{
+        html+='<div class="chip meet" title="'+esc(mt.title)+'">▦ '+esc(mt.title)+'</div>';
+      });
+      html+='</div>';
+    }
+    html+='<div class="wtot"><b>'+weekJobDays+'</b>days</div></div>';
+  }
+  html+='</div>';
+  document.getElementById("calview").innerHTML=html;
+}
+
+function renderList(){
+  const list=visibleJobs().slice().sort((a,b)=>(a.start_date||'')<(b.start_date||'')?-1:(a.start_date||'')>(b.start_date||'')?1:0);
+  const today=C.iso(new Date());
+  const clash=C.clashRefs(list);
+  let html="", lastG="";
+  list.forEach(j=>{
+    const g=j.start_date?C.parseD(j.start_date).toLocaleDateString("en-AU",{month:"long",year:"numeric"}):"Unscheduled";
+    if(g!==lastG){html+='<div class="group">'+g+'</div>';lastG=g;}
+    const past=j.end_date && j.end_date<today;
+    html+='<div class="job" style="border-left-color:'+colorForJob(j)+(past?";opacity:.55":"")+'">'
+      +'<div class="meta">'
+      +'<h3>'+esc(shortName(j))+stageBadge(j)+statusBadge(j)+(j.is_tentative?'<span class="badge b-pending">tentative</span>':'')+(clash.has(j.job_reference)?'<span class="badge b-declined">⚠ clash</span>':'')+'</h3>'
+      +'<div class="sub">📅 '+dateLabel(j)+'</div>'
+      +'<div class="sub">👤 '+esc(assigneeLabel(j))+'</div>'
+      +'<div class="sub">📍 '+esc(j.site_address||'')+'</div>'
+      +(j.pdf_links&&j.pdf_links.length?'<div class="sub pdf">📄 '+j.pdf_links.map((u,i)=>'<a href="'+esc(u)+'" target="_blank" rel="noopener">file '+(i+1)+'</a>').join(' · ')+'</div>':'')
+      +'</div>'
+      +'<div class="acts">'
+      +'<button onclick="openJob(\''+esc(j.job_reference)+'\')">Details</button>'
+      +'<button onclick="addToGCal(\''+esc(j.job_reference)+'\')" title="Add to Google Calendar">📅 Calendar</button>'
+      +'</div></div>';
+  });
+  document.getElementById("listview").innerHTML=html||'<p style="color:var(--muted)">No jobs match the current filters.</p>';
+}
+
+function dateLabel(j){
+  if(!j.start_date) return 'Unscheduled';
+  const f=dt=>dt.toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
+  return f(C.parseD(j.start_date))+(j.end_date&&j.end_date!==j.start_date?(' → '+f(C.parseD(j.end_date))):'')+' • '+(j.days_required||1)+' day(s)';
+}
+function assigneeLabel(j){
+  const parts=[];
+  if(j.drafter_name) parts.push('Drafter: '+j.drafter_name);
+  if(j.installer_name) parts.push('Installer: '+j.installer_name);
+  return parts.length?parts.join(' · '):'Unassigned';
+}
+function stageBadge(j){ return '<span class="badge b-stage">'+esc(STAGE_LABEL[j.stage]||j.stage)+'</span>'; }
+function statusBadge(j){
+  const s=j.status||"Pending";
+  const cls={Pending:"b-pending",Approved:"b-approved",Scheduled:"b-scheduled",Declined:"b-declined"}[s]||"b-pending";
+  return '<span class="badge '+cls+'">'+esc(s)+'</span>';
+}
+
+function findJob(ref){ return JOBS.find(j=>j.job_reference===ref); }
+function addToGCal(ref){ const j=findJob(ref); if(j) window.open(C.gcalUrl(j),"_blank","noopener"); }
+
+function openJob(ref){
+  const j=findJob(ref); if(!j) return;
+  const m=document.getElementById("modal");
+  let html='<h2>'+esc(shortName(j))+stageBadge(j)+statusBadge(j)+'</h2>'
+    +'<div class="kv"><b>Dates</b><span>'+esc(dateLabel(j))+'</span></div>'
+    +'<div class="kv"><b>Assigned</b><span>'+esc(assigneeLabel(j))+'</span></div>'
+    +'<div class="kv"><b>Address</b><span><a href="https://maps.google.com/?q='+encodeURIComponent(j.site_address||'')+'" target="_blank" rel="noopener">'+esc(j.site_address||'')+'</a></span></div>'
+    +(j.contact_name?'<div class="kv"><b>Contact</b><span>'+esc(j.contact_name)+'</span></div>':'')
+    +(j.contact_phone?'<div class="kv"><b>Phone</b><span>'+esc(j.contact_phone)+'</span></div>':'')
+    +(j.contact_email?'<div class="kv"><b>Email</b><span>'+esc(j.contact_email)+'</span></div>':'')
+    +(j.client_meeting?'<div class="kv"><b>Client mtg</b><span>'+esc(j.client_meeting)+'</span></div>':'')
+    +'<div class="kv"><b>Summary</b><span>'+esc(j.job_summary||'')+'</span></div>'
+    +(j.pdf_links&&j.pdf_links.length?'<div class="kv"><b>Files</b><span>'+j.pdf_links.map((u,i)=>'<a href="'+esc(u)+'" target="_blank" rel="noopener">file '+(i+1)+'</a>').join(' · ')+'</span></div>':'')
+    +(j.notes?'<div class="note">'+esc(j.notes)+'</div>':'');
+  if(ME.role==='admin') html+=assignBoxHTML(j);
+  html+='<div class="row" style="margin-top:14px">'
+    +'<button onclick="addToGCal(\''+esc(j.job_reference)+'\')">📅 Add to Google Calendar</button>'
+    +'<span class="spacer"></span><button onclick="closeM()">Close</button></div>';
+  m.innerHTML=html;
+  document.getElementById("scrim").classList.add("open");
+}
+
+function assignBoxHTML(j){
+  const opt=(val,cur,label)=>'<option value="'+esc(val)+'"'+(val===cur?' selected':'')+'>'+esc(label)+'</option>';
+  const drafters=EMPLOYEES.filter(e=>e.role==='drafter');
+  const installers=EMPLOYEES.filter(e=>e.role==='installer');
+  let dSel='<select id="aDrafter">'+opt('','',j.assigned_drafter?'—':'— unassigned —');
+  drafters.forEach(e=>dSel+=opt(e.employee_code,j.assigned_drafter,e.full_name)); dSel+='</select>';
+  let iSel='<select id="aInstaller">'+opt('','',j.assigned_installer?'—':'— unassigned —');
+  installers.forEach(e=>iSel+=opt(e.employee_code,j.assigned_installer,e.full_name)); iSel+='</select>';
+  let sSel='<select id="aStage">';
+  STAGE_ORDER.forEach(s=>sSel+=opt(s,j.stage,STAGE_LABEL[s])); sSel+='</select>';
+  let stSel='<select id="aStatus">';
+  ['Pending','Approved','Scheduled','Declined'].forEach(s=>stSel+=opt(s,j.status,s)); stSel+='</select>';
+  return '<div class="assignbox"><h4>Assign &amp; schedule (admin)</h4>'
+    +'<div>Drafter '+dSel+' Installer '+iSel+'</div>'
+    +'<div>Stage '+sSel+' Status '+stSel+'</div>'
+    +'<button class="primary" onclick="saveAssign(\''+esc(j.job_reference)+'\')">Save</button></div>';
+}
+
+async function saveAssign(ref){
+  const body={
+    job_reference:ref,
+    assigned_drafter:document.getElementById('aDrafter').value,
+    assigned_installer:document.getElementById('aInstaller').value,
+    stage:document.getElementById('aStage').value,
+    status:document.getElementById('aStatus').value
+  };
+  try{
+    const r=await Api.post('/assign',body);
+    const i=JOBS.findIndex(x=>x.job_reference===ref);
+    if(i>=0) JOBS[i]=r.job;
+    closeM(); render();
+  }catch(e){ alert('Could not save: '+(e.data&&e.data.error||e.message)); }
+}
+
+function closeM(){ document.getElementById("scrim").classList.remove("open"); }
+
+function buildFilters(){
+  empFilter=new Set(EMPLOYEES.map(e=>e.employee_code)); empFilter.add('__unassigned__');
+  stageFilter=new Set(STAGE_ORDER);
+  const ef=document.getElementById('empFilters'); ef.innerHTML='';
+  const mkBtn=(code,label,color)=>{
+    const b=document.createElement('button'); b.className='flt active';
+    b.innerHTML=(color?'<span class="dot" style="background:'+color+'"></span>':'')+esc(label);
+    b.onclick=()=>{ empFilter.has(code)?empFilter.delete(code):empFilter.add(code); b.classList.toggle('active'); render(); };
+    return b;
+  };
+  EMPLOYEES.forEach(e=>ef.appendChild(mkBtn(e.employee_code,e.full_name,e.color)));
+  ef.appendChild(mkBtn('__unassigned__','Unassigned','#cbd5e1'));
+  const sf=document.getElementById('stageFilters'); sf.innerHTML='';
+  STAGE_ORDER.forEach(s=>{
+    const b=document.createElement('button'); b.className='flt active'; b.textContent=STAGE_LABEL[s];
+    b.onclick=()=>{ stageFilter.has(s)?stageFilter.delete(s):stageFilter.add(s); b.classList.toggle('active'); render(); };
+    sf.appendChild(b);
+  });
+  const leg=document.getElementById('empLegend');
+  leg.innerHTML=EMPLOYEES.map(e=>'<span style="margin-right:10px"><i class="dot" style="background:'+e.color+'"></i>'+esc(e.full_name)+'</span>').join('');
+}
+
+// events
+document.getElementById("prev").onclick=()=>{cur.setMonth(cur.getMonth()-1);render();};
+document.getElementById("next").onclick=()=>{cur.setMonth(cur.getMonth()+1);render();};
+document.getElementById("today").onclick=()=>{cur=new Date();cur.setDate(1);cur.setHours(0,0,0,0);render();};
+document.getElementById("vcal").onclick=()=>{view="cal";render();};
+document.getElementById("vlist").onclick=()=>{view="list";render();};
+document.getElementById("logout").onclick=logout;
+document.getElementById("scrim").onclick=e=>{if(e.target.id==="scrim")closeM();};
+
+(async function boot(){
+  let me; try{ me=await Api.get('/auth/me'); }catch(e){ return; } // redirected to login
+  ME=me.user;
+  document.getElementById('whoami').textContent=ME.full_name+' ('+ME.role+')';
+  const emp=await Api.get('/auth/employees'); EMPLOYEES=emp.employees;
+  EMPLOYEES.forEach(e=>{ COLOR[e.employee_code]=e.color; NAME[e.employee_code]=e.full_name; });
+  const [jb,mt]=await Promise.all([Api.get('/jobs'),Api.get('/meetings')]);
+  JOBS=jb.jobs; MEETINGS=mt.meetings;
+  buildFilters();
+  const up=JOBS.map(j=>j.start_date).filter(Boolean).filter(d=>d>=C.iso(new Date())).sort()[0];
+  if(up){const d=C.parseD(up);cur=new Date(d.getFullYear(),d.getMonth(),1);}
+  render();
+})();
+</script>
+</body>
+</html>
