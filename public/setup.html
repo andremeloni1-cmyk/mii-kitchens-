@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>First-time setup — Mii Kitchens Hub</title>
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--ink:#1f2430;--muted:#6b7280;--line:#e5e7eb;--danger:#e23b3b;--ok:#1a7f37}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px;max-width:400px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+  h1{font-size:20px;margin:0 0 2px}
+  p.sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
+  input{width:100%;font:inherit;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--ink)}
+  button{width:100%;margin-top:18px;font:inherit;cursor:pointer;border:0;background:var(--ink);color:#fff;border-radius:8px;padding:10px;font-weight:600}
+  .msg{font-size:13px;margin-top:12px;min-height:18px}
+  .msg.err{color:var(--danger)} .msg.ok{color:var(--ok)}
+  .hint{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+  <form class="card" id="form">
+    <h1>🔧 First-time setup</h1>
+    <p class="sub">Set the password for an employee account. You only need this once.</p>
+    <label for="token">Setup token</label>
+    <input id="token" type="password" autocomplete="off" required placeholder="the SETUP_TOKEN you set in hosting">
+    <label for="email">Employee email</label>
+    <input id="email" type="email" autocomplete="off" required placeholder="andre@miikitchen.com.au">
+    <label for="password">New password</label>
+    <input id="password" type="password" autocomplete="new-password" required minlength="8" placeholder="at least 8 characters">
+    <button type="submit">Set password</button>
+    <div class="msg" id="msg"></div>
+    <p class="hint">After this works, sign in at <a href="login.html">login</a>. For security, remove the <code>SETUP_TOKEN</code> variable from your hosting settings once you're in.</p>
+  </form>
+<script>
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('msg');
+  msg.className = 'msg'; msg.textContent = 'Working…';
+  try {
+    const res = await fetch('/api/auth/bootstrap', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        setup_token: document.getElementById('token').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      msg.className = 'msg ok';
+      msg.textContent = 'Password set for ' + (data.full_name || 'the account') + '. You can sign in now.';
+      return;
+    }
+    const reasons = {
+      setup_disabled: 'Setup is disabled — set a SETUP_TOKEN env var in your hosting first.',
+      bad_token: 'Wrong setup token.',
+      need_email_and_password_min_8: 'Enter an email and a password of at least 8 characters.',
+      no_such_employee: 'No employee with that email. Check the seeded team in db/schema.sql.'
+    };
+    msg.className = 'msg err';
+    msg.textContent = reasons[data.error] || ('Failed (' + res.status + ').');
+  } catch (_) { msg.className = 'msg err'; msg.textContent = 'Network error. Try again.'; }
+});
+</script>
+</body>
+</html>

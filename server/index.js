@@ -55,7 +55,15 @@ app.use((err, _req, res, _next) => {
 
 if (require.main === module) {
   const port = Number(process.env.PORT || 3000);
-  app.listen(port, () => console.log('Mii Kitchens Hub listening on :' + port));
+  const start = () => app.listen(port, () => console.log('Mii Kitchens Hub listening on :' + port));
+  if (process.env.AUTO_MIGRATE === '1') {
+    // Managed hosts (no shell): create/upgrade the tables on boot, then serve.
+    require('./migrate').runMigrations()
+      .then(() => { console.log('Schema applied (AUTO_MIGRATE).'); start(); })
+      .catch((e) => { console.error('AUTO_MIGRATE failed (starting anyway):', e.message); start(); });
+  } else {
+    start();
+  }
 }
 
 module.exports = app;

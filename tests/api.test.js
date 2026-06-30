@@ -41,3 +41,20 @@ test('unknown /api route is a JSON 404', async () => {
   assert.strictEqual(res.status, 404);
   assert.strictEqual(res.body.error, 'not_found');
 });
+
+test('POST /api/auth/bootstrap is disabled when SETUP_TOKEN is unset', async () => {
+  delete process.env.SETUP_TOKEN;
+  const res = await request(app).post('/api/auth/bootstrap')
+    .send({ setup_token: 'x', email: 'a@b.c', password: 'whatever1' });
+  assert.strictEqual(res.status, 403);
+  assert.strictEqual(res.body.error, 'setup_disabled');
+});
+
+test('POST /api/auth/bootstrap rejects a wrong setup token (before any DB call)', async () => {
+  process.env.SETUP_TOKEN = 'the-right-token';
+  const res = await request(app).post('/api/auth/bootstrap')
+    .send({ setup_token: 'the-wrong-token!', email: 'a@b.c', password: 'whatever1' });
+  assert.strictEqual(res.status, 403);
+  assert.strictEqual(res.body.error, 'bad_token');
+  delete process.env.SETUP_TOKEN;
+});
