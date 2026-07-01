@@ -177,6 +177,7 @@
   .planspecs{font-size:13px;line-height:1.8;margin-bottom:12px}
   .titleblock{border:1px solid var(--ink);border-radius:6px;padding:10px;font-size:13px}
   .sw{width:34px;height:34px;border-radius:8px;border:1px solid var(--line)}
+  .tradeic{width:38px;height:38px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
 </style>
 </head>
 <body>
@@ -308,8 +309,10 @@ function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show')
 /* ---------------- views ---------------- */
 /* ---- roles: log in as office / a drafter / an installer ---- */
 let currentRole='office';
+function isClient(){return typeof currentRole==='string'&&currentRole.indexOf('client:')===0;}
+function clientJobIndex(){return isClient()?parseInt(currentRole.slice(7),10):-1;}
 function roleUser(){return drafter(currentRole)||installer(currentRole)||null;}
-function roleLabel(){const u=roleUser();return u?u.name:'Office (admin)';}
+function roleLabel(){if(isClient())return JOBS[clientJobIndex()].client+' (client)';const u=roleUser();return u?u.name:'Office (admin)';}
 function isDrafter(){return !!drafter(currentRole);}
 function isInstaller(){return !!installer(currentRole);}
 function openRoleSwitcher(){
@@ -321,6 +324,8 @@ function openRoleSwitcher(){
     ${TEAM.drafters.map(d=>opt(d.code,d.name,'Drafter · '+drafterLoad(d.code)+' jobs',d.initials)).join('')}
     <div class="cmsub">Installers</div>
     ${TEAM.installers.map(t=>opt(t.code,t.name,'Installer · '+installerLoad(t.code)+' jobs',t.initials)).join('')}
+    <div class="cmsub">Clients (portal login)</div>
+    ${[1,3,4].map(ci=>`<div class="pickrow" onclick="setRole('client:${ci}')"><div class="avatar">👤</div><div style="flex:1"><div style="font-weight:700">${esc(JOBS[ci].client)}</div><div class="muted" style="font-size:13px">${esc(JOBS[ci].ref)} · client portal</div></div>${currentRole==='client:'+ci?'<span style="color:var(--accent);font-weight:800">✓</span>':''}</div>`).join('')}
     <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeSheet()">Cancel</button>`;
   openSheet();
 }
@@ -440,7 +445,7 @@ function viewReports(){
     <div style="height:8px"></div></div>`;
 }
 function viewSettings(){
-  const acct=`<div class="card"><b>Account</b><div class="assignrow" style="margin-top:4px"><div class="avatar">${roleUser()?roleUser().initials:'🏢'}</div><div style="flex:1"><div style="font-weight:700">${esc(roleLabel())}</div><div class="muted" style="font-size:13px">${roleUser()?(isDrafter()?'Draftsperson':'Installer'):'Office · full access'}</div></div></div><button class="btn ghost" style="width:100%;margin-top:6px" onclick="openRoleSwitcher()">⇄ Switch account</button></div>`;
+  const acct=`<div class="card"><b>Account</b><div class="assignrow" style="margin-top:4px"><div class="avatar">${roleUser()?roleUser().initials:(isClient()?'👤':'🏢')}</div><div style="flex:1"><div style="font-weight:700">${esc(roleLabel())}</div><div class="muted" style="font-size:13px">${roleUser()?(isDrafter()?'Draftsperson':'Installer'):(isClient()?'Client':'Office · full access')}</div></div></div><button class="btn ghost" style="width:100%;margin-top:6px" onclick="openRoleSwitcher()">⇄ Switch account</button></div>`;
   const appearance=`<div class="card"><div class="row"><div><b>Appearance</b><div class="muted" style="font-size:14px">Light, dark, or follow your device.</div></div></div><div class="seg" style="margin-top:12px"><div class="o">Light</div><div class="o">Dark</div><div class="o on">Auto</div></div></div>`;
   if(currentRole!=='office'){
     return `<div class="wrap"><h1 style="margin-top:6px">Account</h1><div class="sub">Signed in as ${esc(roleLabel())}</div>${acct}${appearance}<div style="height:8px"></div></div>`;
@@ -539,6 +544,18 @@ function clientSelections(i){
     {label:'Kickboard', val:f.kick, sw:'#1c1c1e'}
   ];
 }
+function jobSchedule(i){
+  const j=JOBS[i], ins=installer(j.installer);
+  return [
+    {trade:'Cabinet install', who:'Mii Kitchens'+(ins?' — '+ins.name:''), date:j.installer?j.date:'TBC', icon:'🔧', status:j.installer?'booked':'tentative'},
+    {trade:'Plumber', who:'AquaFlow Plumbing', date:'Thu 23 Jul', icon:'🚰', status:'booked'},
+    {trade:'Electrician', who:'BrightSpark Electrical', date:'Thu 23 Jul', icon:'⚡', status:'booked'},
+    {trade:'Benchtop template', who:'StoneCraft', date:'Fri 24 Jul', icon:'📐', status:'booked'},
+    {trade:'Benchtop install', who:'StoneCraft', date:'Wed 29 Jul', icon:'🪨', status:'tentative'},
+    {trade:'Splashback', who:'Glass & Tile Co', date:'Thu 30 Jul', icon:'🧱', status:'tentative'},
+    {trade:'Handover', who:'Mii Kitchens', date:'Fri 31 Jul', icon:'✅', status:'tentative'}
+  ];
+}
 function openPlan(i,rev){window._planRev=rev;go('plan',i);}
 function viewPlan(i){
   const j=JOBS[i], rev=window._planRev||'C', k=cmGet(i).areas[0], f=cmGet(i).finishes;
@@ -563,8 +580,9 @@ function viewPlan(i){
 function viewClient(i){
   const j=JOBS[i], df=dfGet(i), p=jobPrice(i), sel=clientSelections(i);
   return `<div class="wrap">
-    <div class="back" onclick="go('job',${i})">‹ Back</div>
-    <div class="head"><div class="logo">MK</div><div class="t"><h2>Your kitchen</h2><div class="muted" style="font-size:14px">${esc(j.client)} · ${esc(j.addr)}</div></div></div>
+    ${isClient()?'':`<div class="back" onclick="go('job',${i})">‹ Back</div>`}
+    <div class="head"><div class="logo">MK</div><div class="t"><h2>Your kitchen</h2><div class="muted" style="font-size:14px">${esc(j.client)} · ${esc(j.addr)}</div></div><div class="icoBtn accent" onclick="openRoleSwitcher()">⇄</div></div>
+    ${!isClient()?`<div class="card" style="background:#fdefe7"><div class="row"><div style="flex:1"><b>Client access</b><div class="muted" style="font-size:13px">Send ${esc(j.client)} a private link + login to this portal.</div></div><button class="pill accent on" onclick="toast('Portal link + login sent to client (demo)')">Send link</button></div></div>`:''}
     <div class="banner"><div><b>Stage ${Math.min(j.stage+1,5)} of 5</b><div class="s">${esc(STAGES[Math.min(j.stage,4)])}</div></div></div>
     <div class="card"><b>Progress</b>
       ${STAGES.map((s,k)=>`<div class="chk ${k<=j.stage?'on':''}"><span class="box">${k<=j.stage?'✓':''}</span>${esc(s)}</div>`).join('')}
@@ -585,9 +603,8 @@ function viewClient(i){
       ${p.milestones.map(m=>`<div class="doc"><div style="flex:1"><div style="font-weight:700">${esc(m.label)}</div><div class="muted" style="font-size:13px">${esc(m.when)}</div></div><div style="text-align:right"><div style="font-weight:800">${money(m.amt)}</div><span class="badge ${m.status==='paid'?'b-conf':(m.status==='due'?'b-prog':'b-new')}" style="font-size:11px">${m.status==='paid'?'Paid':(m.status==='due'?'Due':'Upcoming')}</span></div></div>`).join('')}
       <button class="btn primary" style="margin-top:10px" onclick="toast('Opening secure payment (demo)')">Pay next instalment</button>
     </div>
-    <div class="card"><b>Your install</b>
-      ${specRow('Scheduled', j.installer?j.date:'To be confirmed')}
-      ${specRow('On site', j.days>1?j.days+' days':'1 day')}
+    <div class="card"><b>Install schedule</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Your install and the trades coordinated by Mii Kitchens.</div>
+      ${jobSchedule(i).map(s=>`<div class="doc"><div class="tradeic">${s.icon}</div><div style="flex:1"><div style="font-weight:700">${esc(s.trade)}</div><div class="muted" style="font-size:13px">${esc(s.who)} · ${esc(s.date)}</div></div><span class="badge ${s.status==='booked'?'b-conf':'b-sched'}" style="font-size:11px">${s.status==='booked'?'Booked':'Tentative'}</span></div>`).join('')}
     </div>
     <div class="card"><b>Questions?</b><div class="muted" style="font-size:14px;margin:4px 0 10px">Message the Mii Kitchens team about your install.</div>
       <button class="btn primary" onclick="toast('Message sent (demo)')">Message the team</button></div>
@@ -872,6 +889,7 @@ function viewDocs(i){
 /* ---------------- router ---------------- */
 let state={tab:'jobs',arg:null};
 const OFFICE_TABS=[['jobs','📋','Jobs'],['calendar','🗓️','Calendar'],['clients','👥','Clients'],['reports','📄','Reports'],['settings','☀️','Settings']];
+const CLIENT_TABS=[['jobs','🏠','My kitchen'],['settings','☀️','Account']];
 const STAFF_TABS=[['jobs','📋','My jobs'],['calendar','🗓️','Calendar'],['settings','☀️','Account']];
 function go(tab,arg){state={tab,arg:arg??null};window.scrollTo(0,0);render();}
 function render(){
@@ -888,11 +906,11 @@ function render(){
   else if(t==='clients')app.innerHTML=viewClients();
   else if(t==='reports')app.innerHTML=viewReports();
   else if(t==='settings')app.innerHTML=viewSettings();
-  else app.innerHTML=(currentRole==='office')?viewJobs():(isDrafter()?viewDrafterHome(currentRole):viewInstallerHome(currentRole));
+  else app.innerHTML=(currentRole==='office')?viewJobs():(isClient()?viewClient(clientJobIndex()):(isDrafter()?viewDrafterHome(currentRole):viewInstallerHome(currentRole)));
   let activeTab;
   if(currentRole==='office') activeTab=['job','checkmeasure','installsched','drafting','docs'].includes(t)?'jobs':((t==='client'||t==='plan')?'clients':(t==='installer'?'reports':t));
   else activeTab=(t==='calendar')?'calendar':(t==='settings')?'settings':'jobs';
-  const tabs=currentRole==='office'?OFFICE_TABS:STAFF_TABS;
+  const tabs=currentRole==='office'?OFFICE_TABS:(isClient()?CLIENT_TABS:STAFF_TABS);
   $('#tabbar').innerHTML=tabs.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
 }
 render();
