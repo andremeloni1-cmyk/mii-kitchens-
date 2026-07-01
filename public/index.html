@@ -206,7 +206,7 @@ const JOBS = [
    date:'Fri 3 Jul', time:'All day', addr:'12 Onix Way, Rhodes', files:9, done:0, total:8,
    status:'conf', stage:1, rooms:['Kitchen']},
   {ref:'QU3382', client:'Devine Homes — Matthew W.', builder:'mii Kitchens', jobno:'JOB-1074', drafter:'PRIYA', installer:'LEE',
-   date:'Wed 22 Jul', time:'All day', addr:'8 Verona Rd, Kellyville', files:5, done:0, total:9,
+   date:'Wed 22–Thu 23 Jul', time:'On site 2 days', days:2, addr:'8 Verona Rd, Kellyville', files:5, done:0, total:9,
    status:'conf', stage:1, rooms:['Kitchen','Ensuite','Walk-in Pantry']},
   {ref:'QU3496', client:'Eagle Homes — Lake Illawarra', builder:'Eagle Homes', jobno:'JOB-1089', drafter:null, installer:null,
    date:'Thu 30 Jul', time:'09:00', addr:'3 Lakeview Pde, Warilla', files:2, done:0, total:8,
@@ -426,7 +426,7 @@ function viewJob(i){
 
     <div class="stage"><div class="sh">${sn(3)}<div style="flex:1"><b>Installation</b><div class="muted" style="font-size:13px">Assigned installer fits the kitchen on site</div></div></div>
       <div class="body">
-        ${ins?`<div class="assignrow"><div class="avatar">${ins.initials}</div><div><div style="font-weight:700">${esc(ins.name)}</div><div class="muted" style="font-size:13px">Booked · ${esc(j.date)}</div></div></div>`
+        ${ins?`<div class="assignrow"><div class="avatar">${ins.initials}</div><div><div style="font-weight:700">${esc(ins.name)}</div><div class="muted" style="font-size:13px">Booked · ${esc(j.date)}${j.days>1?' · '+j.days+' days':''}</div></div></div>`
             :`<div class="muted" style="font-size:14px;padding:6px 0">Not assigned yet.</div>`}
         <button class="btn ghost" style="width:100%;margin-top:6px" onclick="openInstallerPicker(${i})">${ins?'Reassign installer':'Assign installer'}</button>
       </div></div>
@@ -592,40 +592,53 @@ function viewCheckMeasure(i){
 function installerLoad(code){return JOBS.filter(j=>j.installer===code).length;}
 function openSheet(){$('#scrim').classList.add('open');$('#sheet').classList.add('open');}
 function closeSheet(){$('#scrim').classList.remove('open');$('#sheet').classList.remove('open');}
-function openInstallerPicker(i){pickerState={job:i,installer:JOBS[i].installer||TEAM.installers[0].code,day:null};renderPicker();openSheet();}
-function pickerSetInstaller(code){pickerState.installer=code;pickerState.day=null;renderPicker();}
-function selectDay(d){pickerState.day=d;renderPicker();}
+function openInstallerPicker(i){pickerState={job:i,installer:JOBS[i].installer||TEAM.installers[0].code,start:null,end:null};renderPicker();openSheet();}
+function pickerSetInstaller(code){pickerState.installer=code;pickerState.start=null;pickerState.end=null;renderPicker();}
 function wdayJul(d){return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][(2+(d-1))%7];}
-function installerCalendar(code,sel){
-  const busy=new Set((INSTALLER_BUSY[code]||[]).map(x=>+x.slice(-2)));
+function busySet(code){return new Set((INSTALLER_BUSY[code]||[]).map(x=>+x.slice(-2)));}
+function rangeHasBusy(code,a,b){const bs=busySet(code);for(let d=a;d<=b;d++)if(bs.has(d))return true;return false;}
+function selectDay(d){
+  const p=pickerState;
+  if(p.start==null||p.end!=null){p.start=d;p.end=null;}
+  else if(d<p.start){p.start=d;}
+  else if(d>p.start){ if(rangeHasBusy(p.installer,p.start,d)){toast('That span crosses a booked day');return;} p.end=d; }
+  renderPicker();
+}
+function installerCalendar(code,start,end){
+  const busy=busySet(code);
+  const inSel=d=>start!=null&&(end!=null?(d>=start&&d<=end):d===start);
   let cells='<div class="d out">29</div><div class="d out">30</div>';
   for(let d=1;d<=31;d++){const dow=(2+(d-1))%7,we=dow>=5,bz=busy.has(d);
-    const cls='d '+(we?'we':(bz?'busy':'free'))+(sel===d?' sel':'');
+    const cls='d '+(inSel(d)?'sel':(we?'we':(bz?'busy':'free')));
     cells+=`<div class="${cls}" ${(!we&&!bz)?`onclick="selectDay(${d})"`:''}>${d}</div>`;}
   cells+='<div class="d out">1</div><div class="d out">2</div>';
   return `<div class="mcal"><div class="g"><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div><div class="dow">S</div>${cells}</div></div>`;
 }
+function rangeLabel(start,end){return end?`${wdayJul(start)} ${start}–${wdayJul(end)} ${end} Jul`:`${wdayJul(start)} ${start} Jul`;}
 function renderPicker(){
-  const {job:i,installer:code,day}=pickerState, j=JOBS[i], ins=installer(code);
+  const {job:i,installer:code,start,end}=pickerState, j=JOBS[i], ins=installer(code);
   const chips=TEAM.installers.map(t=>`<button class="pill ${t.code===code?'accent on':''}" onclick="pickerSetInstaller('${t.code}')">${esc(t.name)} · ${installerLoad(t.code)}</button>`).join('');
+  const days=start?(end?end-start+1:1):0;
   $('#sheet').innerHTML=`<div class="grab"></div>
     <b style="font-size:19px">Assign installer</b>
     <div class="muted" style="font-size:14px;margin:2px 0 8px">${esc(j.ref)} ${esc(j.client)} · ${esc(j.addr)}</div>
     <div class="cmsub">Installer</div>
     <div class="filters" style="padding:6px 0 4px">${chips}</div>
     <div class="cmsub">${esc(ins.name)}'s availability — July 2026</div>
-    ${installerCalendar(code,day)}
-    <div class="row" style="margin-top:8px;font-size:13px"><span class="free">● available</span><span class="busy" style="margin-left:16px">● booked</span></div>
-    <button class="btn primary" style="margin-top:14px${day?'':';opacity:.5'}" onclick="confirmBooking()">${day?('Book '+esc(ins.name)+' — '+wdayJul(day)+' '+day+' Jul'):'Pick an available day above'}</button>
+    ${installerCalendar(code,start,end)}
+    <div class="row" style="margin-top:8px;font-size:13px"><span class="free">● available</span><span class="busy" style="margin-left:16px">● booked</span><span class="muted" style="margin-left:auto">Tap start → end day</span></div>
+    <button class="btn primary" style="margin-top:14px${start?'':';opacity:.5'}" onclick="confirmBooking()">${start?('Book '+esc(ins.name)+' — '+rangeLabel(start,end)+(days>1?(' · '+days+' days'):'')):'Pick day(s) above'}</button>
     <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>`;
 }
 function confirmBooking(){
-  const {job:i,installer:code,day}=pickerState; if(!day){toast('Pick an available day');return;}
-  JOBS[i].installer=code; JOBS[i].date=wdayJul(day)+' '+day+' Jul';
-  if(!JOBS[i].time||JOBS[i].time==='All day')JOBS[i].time='07:00–16:00';
+  const {job:i,installer:code,start,end}=pickerState; if(!start){toast('Pick a start day');return;}
+  const days=end?end-start+1:1;
+  JOBS[i].installer=code; JOBS[i].date=rangeLabel(start,end); JOBS[i].days=days;
+  JOBS[i].time=days>1?('On site '+days+' days'):'07:00–16:00';
   if(JOBS[i].status==='new')JOBS[i].status='sched';
-  const iso='2026-07-'+String(day).padStart(2,'0'); INSTALLER_BUSY[code]=INSTALLER_BUSY[code]||[]; if(!INSTALLER_BUSY[code].includes(iso))INSTALLER_BUSY[code].push(iso);
-  closeSheet(); toast(installer(code).name+' booked · '+wdayJul(day)+' '+day+' Jul'); render();
+  INSTALLER_BUSY[code]=INSTALLER_BUSY[code]||[];
+  for(let d=start;d<=(end||start);d++){const iso='2026-07-'+String(d).padStart(2,'0');if(!INSTALLER_BUSY[code].includes(iso))INSTALLER_BUSY[code].push(iso);}
+  closeSheet(); toast(installer(code).name+' booked · '+rangeLabel(start,end)); render();
 }
 function viewInstallSchedule(){
   return `<div class="wrap">
