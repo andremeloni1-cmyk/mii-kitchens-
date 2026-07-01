@@ -1,0 +1,10 @@
+# Framework/language detection: this is a JavaScript (Node/Express) app.
+# The dashboard HTML/CSS, SQL and docs were skewing GitHub Linguist toward HTML,
+# which made managed hosts mis-detect the project as a static site.
+public/**          linguist-detectable=false
+apps-script/**     linguist-detectable=false
+db/**              linguist-detectable=false
+deploy/**          linguist-detectable=false
+docs/**            linguist-documentation
+*.md               linguist-documentation
+package-lock.json  linguist-generated=true
