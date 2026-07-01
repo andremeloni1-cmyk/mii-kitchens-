@@ -161,6 +161,16 @@
   .warn{color:var(--accent);font-weight:700}
   .free{color:var(--green);font-size:13px;font-weight:700}
   .busy{color:var(--amber);font-size:13px;font-weight:700}
+  .grab{width:40px;height:5px;background:#d8d7d9;border-radius:3px;margin:0 auto 12px}
+  .mcal{background:var(--card2);border-radius:14px;padding:12px 8px}
+  .mcal .g{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:4px 0}
+  .mcal .dow{color:var(--muted);font-size:11px;font-weight:700;padding-bottom:6px}
+  .mcal .d{padding:8px 0;font-size:15px;border-radius:10px;position:relative}
+  .mcal .d.out,.mcal .d.we{color:#c9c8ca}
+  .mcal .d.free{cursor:pointer;font-weight:600}
+  .mcal .d.busy{color:var(--amber)}
+  .mcal .d.busy::after{content:"";position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--amber)}
+  .mcal .d.sel{background:var(--accent);color:#fff;font-weight:800}
 </style>
 </head>
 <body>
@@ -211,6 +221,11 @@ const CLIENTS = [
   {mono:'HK', name:'Harrington Kitchens', sub:'1 job', color:'var(--teal)'},
   {mono:'EH', name:'Eagle Homes', sub:'1 job', color:'var(--gold)'}
 ];
+const INSTALLER_BUSY = {
+  SAM:['2026-07-03','2026-07-08','2026-07-09','2026-07-15','2026-07-16','2026-07-24'],
+  LEE:['2026-07-01','2026-07-02','2026-07-14','2026-07-22','2026-07-23','2026-07-29']
+};
+let pickerState=null;
 const EVENTS = [
   {d:'Mon, 29 Jun', t:'All day', title:'QU3437 Bracken — 36 Eather'},
   {d:'Tue, 30 Jun', t:'08:00 am', title:'Site check-measure — Devine Homes'},
@@ -577,28 +592,41 @@ function viewCheckMeasure(i){
 function installerLoad(code){return JOBS.filter(j=>j.installer===code).length;}
 function openSheet(){$('#scrim').classList.add('open');$('#sheet').classList.add('open');}
 function closeSheet(){$('#scrim').classList.remove('open');$('#sheet').classList.remove('open');}
-function openInstallerPicker(i){
-  const j=JOBS[i];
-  const rows=TEAM.installers.map(ins=>{
-    const load=installerLoad(ins.code);
-    const busy=JOBS.some(x=>x!==j && x.installer===ins.code && x.date===j.date);
-    return `<div class="pickrow" onclick="pickInstaller(${i},'${ins.code}')">
-      <div class="avatar">${ins.initials}</div>
-      <div style="flex:1"><div style="font-weight:700">${esc(ins.name)}</div><div class="muted" style="font-size:13px">${load} job(s) booked</div></div>
-      <div class="${busy?'busy':'free'}">${busy?'Busy '+esc(j.date):'Free '+esc(j.date)}</div>
-      ${j.installer===ins.code?'<span style="color:var(--accent);font-weight:800;margin-left:6px">✓</span>':''}
-    </div>`;
-  }).join('');
-  $('#sheet').innerHTML=`<div style="width:40px;height:5px;background:#d8d7d9;border-radius:3px;margin:0 auto 12px"></div>
-    <b style="font-size:19px">Assign installer</b>
-    <div class="muted" style="font-size:14px;margin:2px 0 6px">${esc(j.ref)} ${esc(j.client)} · ${esc(j.addr)}</div>
-    <label class="fld">Install date</label>
-    <input class="tf" id="instDate" value="${esc(j.date)}">
-    <div class="cmsub">Choose installer</div>${rows}
-    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeSheet()">Cancel</button>`;
-  openSheet();
+function openInstallerPicker(i){pickerState={job:i,installer:JOBS[i].installer||TEAM.installers[0].code,day:null};renderPicker();openSheet();}
+function pickerSetInstaller(code){pickerState.installer=code;pickerState.day=null;renderPicker();}
+function selectDay(d){pickerState.day=d;renderPicker();}
+function wdayJul(d){return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][(2+(d-1))%7];}
+function installerCalendar(code,sel){
+  const busy=new Set((INSTALLER_BUSY[code]||[]).map(x=>+x.slice(-2)));
+  let cells='<div class="d out">29</div><div class="d out">30</div>';
+  for(let d=1;d<=31;d++){const dow=(2+(d-1))%7,we=dow>=5,bz=busy.has(d);
+    const cls='d '+(we?'we':(bz?'busy':'free'))+(sel===d?' sel':'');
+    cells+=`<div class="${cls}" ${(!we&&!bz)?`onclick="selectDay(${d})"`:''}>${d}</div>`;}
+  cells+='<div class="d out">1</div><div class="d out">2</div>';
+  return `<div class="mcal"><div class="g"><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div><div class="dow">S</div>${cells}</div></div>`;
 }
-function pickInstaller(i,code){const d=$('#instDate');if(d)JOBS[i].date=d.value;JOBS[i].installer=code;if(JOBS[i].status==='new')JOBS[i].status='sched';closeSheet();toast(installer(code).name+' booked · '+JOBS[i].date);render();}
+function renderPicker(){
+  const {job:i,installer:code,day}=pickerState, j=JOBS[i], ins=installer(code);
+  const chips=TEAM.installers.map(t=>`<button class="pill ${t.code===code?'accent on':''}" onclick="pickerSetInstaller('${t.code}')">${esc(t.name)} · ${installerLoad(t.code)}</button>`).join('');
+  $('#sheet').innerHTML=`<div class="grab"></div>
+    <b style="font-size:19px">Assign installer</b>
+    <div class="muted" style="font-size:14px;margin:2px 0 8px">${esc(j.ref)} ${esc(j.client)} · ${esc(j.addr)}</div>
+    <div class="cmsub">Installer</div>
+    <div class="filters" style="padding:6px 0 4px">${chips}</div>
+    <div class="cmsub">${esc(ins.name)}'s availability — July 2026</div>
+    ${installerCalendar(code,day)}
+    <div class="row" style="margin-top:8px;font-size:13px"><span class="free">● available</span><span class="busy" style="margin-left:16px">● booked</span></div>
+    <button class="btn primary" style="margin-top:14px${day?'':';opacity:.5'}" onclick="confirmBooking()">${day?('Book '+esc(ins.name)+' — '+wdayJul(day)+' '+day+' Jul'):'Pick an available day above'}</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>`;
+}
+function confirmBooking(){
+  const {job:i,installer:code,day}=pickerState; if(!day){toast('Pick an available day');return;}
+  JOBS[i].installer=code; JOBS[i].date=wdayJul(day)+' '+day+' Jul';
+  if(!JOBS[i].time||JOBS[i].time==='All day')JOBS[i].time='07:00–16:00';
+  if(JOBS[i].status==='new')JOBS[i].status='sched';
+  const iso='2026-07-'+String(day).padStart(2,'0'); INSTALLER_BUSY[code]=INSTALLER_BUSY[code]||[]; if(!INSTALLER_BUSY[code].includes(iso))INSTALLER_BUSY[code].push(iso);
+  closeSheet(); toast(installer(code).name+' booked · '+wdayJul(day)+' '+day+' Jul'); render();
+}
 function viewInstallSchedule(){
   return `<div class="wrap">
     <div class="back" onclick="go('jobs')">‹ Jobs</div>
