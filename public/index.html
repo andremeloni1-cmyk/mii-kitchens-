@@ -150,6 +150,17 @@
   .svc .pos{color:var(--muted);margin-left:auto;text-align:right;max-width:52%}
   .addrow{color:var(--accent);font-weight:700;font-size:14px;padding:10px 0 2px}
   .diag{margin:12px 0 4px;background:var(--card2);border-radius:14px;padding:12px 8px}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:.2s;z-index:70}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;background:var(--card);
+    border-radius:22px 22px 0 0;padding:16px 18px calc(20px + env(safe-area-inset-bottom));transform:translateY(115%);
+    transition:transform .25s;z-index:75;box-shadow:0 -12px 34px rgba(0,0,0,.16);max-height:84vh;overflow:auto}
+  .sheet.open{transform:translateY(0)}
+  .pickrow{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}
+  .pickrow:first-child{border-top:0}
+  .warn{color:var(--accent);font-weight:700}
+  .free{color:var(--green);font-size:13px;font-weight:700}
+  .busy{color:var(--amber);font-size:13px;font-weight:700}
 </style>
 </head>
 <body>
@@ -158,6 +169,8 @@
 
 <nav class="tabbar" id="tabbar"></nav>
 <div class="toast" id="toast"></div>
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
 
 <script>
 /* ---------------- sample data (demo only) ---------------- */
@@ -287,6 +300,7 @@ function viewJobs(){
       <div class="stat dark"><div class="n">$0</div><div class="l">Value</div></div>
     </div>
     <button class="wide" onclick="toast('Checking inbox for new jobs…')">✉️ Check inbox for new jobs</button>
+    <button class="wide" onclick="go('installsched')">📅 Install schedule — assign installers</button>
     <div class="search">🔍 Search jobs, clients, addresses…</div>
     <div class="filters">
       <button class="pill on">Active</button><button class="pill">To confirm</button>
@@ -399,7 +413,7 @@ function viewJob(i){
       <div class="body">
         ${ins?`<div class="assignrow"><div class="avatar">${ins.initials}</div><div><div style="font-weight:700">${esc(ins.name)}</div><div class="muted" style="font-size:13px">Booked · ${esc(j.date)}</div></div></div>`
             :`<div class="muted" style="font-size:14px;padding:6px 0">Not assigned yet.</div>`}
-        <button class="btn ghost" style="width:100%;margin-top:6px" onclick="toast('Assign installer (demo)')">${ins?'Reassign installer':'Assign installer'}</button>
+        <button class="btn ghost" style="width:100%;margin-top:6px" onclick="openInstallerPicker(${i})">${ins?'Reassign installer':'Assign installer'}</button>
       </div></div>
 
     <div class="stage"><div class="sh"><div class="snum active">📄</div><div style="flex:1"><b>Documents &amp; PDFs</b><div class="muted" style="font-size:13px">Everything for this job in one place</div></div></div>
@@ -559,6 +573,54 @@ function viewCheckMeasure(i){
   </div>`;
 }
 
+/* ---- install schedule (office assigns installers) ---- */
+function installerLoad(code){return JOBS.filter(j=>j.installer===code).length;}
+function openSheet(){$('#scrim').classList.add('open');$('#sheet').classList.add('open');}
+function closeSheet(){$('#scrim').classList.remove('open');$('#sheet').classList.remove('open');}
+function openInstallerPicker(i){
+  const j=JOBS[i];
+  const rows=TEAM.installers.map(ins=>{
+    const load=installerLoad(ins.code);
+    const busy=JOBS.some(x=>x!==j && x.installer===ins.code && x.date===j.date);
+    return `<div class="pickrow" onclick="pickInstaller(${i},'${ins.code}')">
+      <div class="avatar">${ins.initials}</div>
+      <div style="flex:1"><div style="font-weight:700">${esc(ins.name)}</div><div class="muted" style="font-size:13px">${load} job(s) booked</div></div>
+      <div class="${busy?'busy':'free'}">${busy?'Busy '+esc(j.date):'Free '+esc(j.date)}</div>
+      ${j.installer===ins.code?'<span style="color:var(--accent);font-weight:800;margin-left:6px">✓</span>':''}
+    </div>`;
+  }).join('');
+  $('#sheet').innerHTML=`<div style="width:40px;height:5px;background:#d8d7d9;border-radius:3px;margin:0 auto 12px"></div>
+    <b style="font-size:19px">Assign installer</b>
+    <div class="muted" style="font-size:14px;margin:2px 0 6px">${esc(j.ref)} ${esc(j.client)} · ${esc(j.addr)}</div>
+    <label class="fld">Install date</label>
+    <input class="tf" id="instDate" value="${esc(j.date)}">
+    <div class="cmsub">Choose installer</div>${rows}
+    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeSheet()">Cancel</button>`;
+  openSheet();
+}
+function pickInstaller(i,code){const d=$('#instDate');if(d)JOBS[i].date=d.value;JOBS[i].installer=code;if(JOBS[i].status==='new')JOBS[i].status='sched';closeSheet();toast(installer(code).name+' booked · '+JOBS[i].date);render();}
+function viewInstallSchedule(){
+  return `<div class="wrap">
+    <div class="back" onclick="go('jobs')">‹ Jobs</div>
+    <h2>Install schedule</h2>
+    <div class="sub">Book installers onto jobs and see each installer's load.</div>
+    <div class="cmsub">Installers — this week</div>
+    ${TEAM.installers.map(ins=>`<div class="assignrow"><div class="avatar">${ins.initials}</div><div style="flex:1"><div style="font-weight:700">${esc(ins.name)}</div><div class="muted" style="font-size:13px">${installerLoad(ins.code)} job(s) booked</div></div><span class="badge ${installerLoad(ins.code)?'b-conf':'b-new'}">${installerLoad(ins.code)?'On schedule':'Available'}</span></div>`).join('')}
+    <div class="cmsub" style="margin-top:16px">Jobs</div>
+    ${JOBS.map((j,i)=>{const ins=installer(j.installer);return `<div class="job">
+      <div class="row"><h3 style="flex:1;font-size:18px">${esc(j.ref)} ${esc(j.client)}</h3>${badge(j.status)}</div>
+      <div class="line">📅 ${j.installer?esc(j.date)+' · '+esc(j.time):'<span class="warn">Not scheduled</span>'}</div>
+      <div class="line">📍 ${esc(j.addr)}</div>
+      <div class="row" style="margin-top:10px">
+        ${ins?`<div class="avatar" style="width:34px;height:34px;font-size:13px">${ins.initials}</div><div style="font-weight:700">${esc(ins.name)}</div>`:'<div class="muted">No installer yet</div>'}
+        <span class="spacer"></span>
+        <button class="pill accent on" onclick="openInstallerPicker(${i})">${ins?'Reassign':'Assign installer'}</button>
+      </div>
+    </div>`;}).join('')}
+    <div style="height:8px"></div>
+  </div>`;
+}
+
 /* ---------------- router ---------------- */
 let state={tab:'jobs',arg:null};
 const TABS=[['jobs','📋','Jobs'],['calendar','🗓️','Calendar'],['clients','👥','Clients'],['reports','📄','Reports'],['settings','☀️','Settings']];
@@ -567,6 +629,7 @@ function render(){
   const t=state.tab;
   if(t==='job')app.innerHTML=viewJob(state.arg);
   else if(t==='checkmeasure')app.innerHTML=viewCheckMeasure(state.arg);
+  else if(t==='installsched')app.innerHTML=viewInstallSchedule();
   else if(t==='client')app.innerHTML=viewClient(state.arg);
   else if(t==='installer')app.innerHTML=viewInstaller(state.arg);
   else if(t==='calendar')app.innerHTML=viewCalendar();
@@ -574,7 +637,7 @@ function render(){
   else if(t==='reports')app.innerHTML=viewReports();
   else if(t==='settings')app.innerHTML=viewSettings();
   else app.innerHTML=viewJobs();
-  const activeTab=['job','checkmeasure'].includes(t)?'jobs':(['client'].includes(t)?'clients':(['installer'].includes(t)?'reports':t));
+  const activeTab=['job','checkmeasure','installsched'].includes(t)?'jobs':(['client'].includes(t)?'clients':(['installer'].includes(t)?'reports':t));
   $('#tabbar').innerHTML=TABS.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
 }
 render();
