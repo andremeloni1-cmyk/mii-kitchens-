@@ -6,3 +6,7 @@ npm-debug.log*
 .DS_Store
 coverage/
 dist/
+
+# Uploaded demo files (kept out of git; dir preserved via .gitkeep)
+uploads/*
+!uploads/.gitkeep
