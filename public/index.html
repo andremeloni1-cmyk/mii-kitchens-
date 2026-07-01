@@ -212,11 +212,13 @@ const TEAM = {
   drafters:[
     {code:'EMILY', name:'Emily Grant', initials:'EG'},
     {code:'JAKE',  name:'Jake Rowe',   initials:'JR'},
-    {code:'PRIYA', name:'Priya Shah',  initials:'PS'}
+    {code:'PRIYA', name:'Priya Shah',  initials:'PS'},
+    {code:'TOM',   name:'Tom Nguyen',  initials:'TN'}
   ],
   installers:[
     {code:'SAM', name:'Sam Turner', initials:'ST'},
-    {code:'LEE', name:'Lee Adams',  initials:'LA'}
+    {code:'LEE', name:'Lee Adams',  initials:'LA'},
+    {code:'MO',  name:'Mo Haddad',  initials:'MH'}
   ]
 };
 const JOBS = [
@@ -237,17 +239,47 @@ const JOBS = [
    status:'new', stage:0, rooms:['Kitchen']},
   {ref:'QU3437', client:'Bracken — 36 Eather', builder:'mii Kitchens', jobno:'JOB-1091', drafter:null, installer:null,
    date:'Mon 3 Aug', time:'All day', addr:'36 Eather Ave, Kellyville', files:1, done:0, total:8,
-   status:'new', stage:0, rooms:['Kitchen','Laundry']}
+   status:'new', stage:0, rooms:['Kitchen','Laundry']},
+  {ref:'QU3510', client:'Fairmont Homes — Patel', builder:'mii Kitchens', jobno:'JOB-1093', drafter:'EMILY', installer:'SAM',
+   date:'Tue 7 Jul', time:'07:00–15:30', addr:'14 Rosebank Ave, Kellyville', files:8, done:2, total:9,
+   status:'prog', stage:2, rooms:['Kitchen','Butler\'s Pantry']},
+  {ref:'QU3521', client:'Metricon — Lot 402', builder:'mii Kitchens', jobno:'JOB-1095', drafter:'JAKE', installer:null,
+   date:'Thu 16 Jul', time:'All day', addr:'9 Highgrove Bvd, Box Hill', files:3, done:0, total:8,
+   status:'sched', stage:1, rooms:['Kitchen','Laundry']},
+  {ref:'QU3533', client:'Harrington — Colebee display', builder:'Harrington Kitchens', jobno:'JOB-1096', drafter:'PRIYA', installer:'LEE',
+   date:'Mon 20–Wed 22 Jul', time:'On site 3 days', days:3, addr:'2 Ridgeline Dr, Colebee', files:12, done:0, total:10,
+   status:'conf', stage:2, rooms:['Kitchen','Scullery','Alfresco']},
+  {ref:'QU3540', client:'McDonald Jones — Riverstone', builder:'mii Kitchens', jobno:'JOB-1098', drafter:'TOM', installer:'MO',
+   date:'Fri 24 Jul', time:'07:00–16:00', addr:'7 Currency St, Riverstone', files:6, done:0, total:8,
+   status:'conf', stage:1, rooms:['Kitchen']},
+  {ref:'QU3552', client:'Wisdom Homes — Leppington', builder:'mii Kitchens', jobno:'JOB-1101', drafter:null, installer:null,
+   date:'Wed 5 Aug', time:'All day', addr:'31 Emerald Hills Bvd, Leppington', files:1, done:0, total:8,
+   status:'new', stage:0, rooms:['Kitchen','Butler\'s Pantry']},
+  {ref:'QU3563', client:'A&Z — Onix Tower L14', builder:'A&Z (via Ingenuity)', jobno:'JOB-1103', drafter:'JAKE', installer:'SAM',
+   date:'Thu 30–Fri 31 Jul', time:'On site 2 days', days:2, addr:'12 Onix Way, Rhodes', files:14, done:0, total:9,
+   status:'conf', stage:2, rooms:['Kitchen','Vanity 1','Vanity 2','Vanity 3']},
+  {ref:'QU3571', client:'Clarendon — Grazia façade', builder:'mii Kitchens', jobno:'JOB-1105', drafter:'EMILY', installer:null,
+   date:'Mon 10 Aug', time:'All day', addr:'5 Grazia Cct, Marsden Park', files:2, done:0, total:8,
+   status:'new', stage:0, rooms:['Kitchen']},
+  {ref:'QU3588', client:'Nuzzo — Ensuite add-on', builder:'mii Kitchens', jobno:'JOB-1107', drafter:'EMILY', installer:'LEE',
+   date:'Fri 14 Aug', time:'08:00–12:00', addr:'25 Llewellyn St, Balmain', files:3, done:0, total:6,
+   status:'sched', stage:1, rooms:['Ensuite','Vanity']}
 ];
 const CLIENTS = [
-  {mono:'MK', name:'mii Kitchens', sub:'9 jobs · 5 active', color:'var(--pink)'},
-  {mono:'A&', name:'A&Z (via Ingenuity)', sub:'1 job · 1 active', color:'var(--blue)'},
-  {mono:'HK', name:'Harrington Kitchens', sub:'1 job', color:'var(--teal)'},
-  {mono:'EH', name:'Eagle Homes', sub:'1 job', color:'var(--gold)'}
+  {mono:'MK', name:'mii Kitchens', sub:'11 jobs · 7 active', color:'var(--pink)'},
+  {mono:'A&', name:'A&Z (via Ingenuity)', sub:'2 jobs · 2 active', color:'var(--blue)'},
+  {mono:'HK', name:'Harrington Kitchens', sub:'2 jobs', color:'var(--teal)'},
+  {mono:'EH', name:'Eagle Homes', sub:'1 job', color:'var(--gold)'},
+  {mono:'FH', name:'Fairmont Homes', sub:'1 job · 1 active', color:'var(--pink)'},
+  {mono:'MT', name:'Metricon', sub:'1 job', color:'var(--blue)'},
+  {mono:'MJ', name:'McDonald Jones', sub:'1 job', color:'var(--teal)'},
+  {mono:'WH', name:'Wisdom Homes', sub:'1 job', color:'var(--gold)'},
+  {mono:'CL', name:'Clarendon Homes', sub:'1 job', color:'var(--pink)'}
 ];
 const INSTALLER_BUSY = {
   SAM:['2026-07-03','2026-07-08','2026-07-09','2026-07-15','2026-07-16','2026-07-24'],
-  LEE:['2026-07-01','2026-07-02','2026-07-14','2026-07-22','2026-07-23','2026-07-29']
+  LEE:['2026-07-01','2026-07-02','2026-07-14','2026-07-22','2026-07-23','2026-07-29'],
+  MO:['2026-07-24','2026-07-25','2026-07-28']
 };
 let pickerState=null;
 const EVENTS = [
@@ -342,7 +374,7 @@ function openRoleSwitcher(){
     <div class="cmsub">Installers</div>
     ${TEAM.installers.map(t=>opt(t.code,t.name,'Installer · '+installerLoad(t.code)+' jobs',t.initials)).join('')}
     <div class="cmsub">Clients (portal login)</div>
-    ${[1,3,4].map(ci=>`<div class="pickrow" onclick="setRole('client:${ci}')"><div class="avatar">👤</div><div style="flex:1"><div style="font-weight:700">${esc(JOBS[ci].client)}</div><div class="muted" style="font-size:13px">${esc(JOBS[ci].ref)} · client portal</div></div>${currentRole==='client:'+ci?'<span style="color:var(--accent);font-weight:800">✓</span>':''}</div>`).join('')}
+    ${[1,3,4,6,8].map(ci=>`<div class="pickrow" onclick="setRole('client:${ci}')"><div class="avatar">👤</div><div style="flex:1"><div style="font-weight:700">${esc(JOBS[ci].client)}</div><div class="muted" style="font-size:13px">${esc(JOBS[ci].ref)} · client portal</div></div>${currentRole==='client:'+ci?'<span style="color:var(--accent);font-weight:800">✓</span>':''}</div>`).join('')}
     <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeSheet()">Cancel</button>`;
   openSheet();
 }
@@ -551,7 +583,8 @@ function addPhotos(i,input){
 }
 
 /* ---- client portal ---- */
-const PRICE_BY_REF={QU3190:28400, ONIX:9200, QU3382:34600, QU3496:22750, QU3437:19800};
+const PRICE_BY_REF={QU3190:28400, ONIX:9200, QU3382:34600, QU3496:22750, QU3437:19800,
+  QU3510:26900, QU3521:21500, QU3533:41200, QU3540:23400, QU3552:18900, QU3563:31800, QU3571:20400, QU3588:8600};
 function money(n){return '$'+n.toLocaleString('en-AU');}
 function jobPrice(i){
   const j=JOBS[i], total=PRICE_BY_REF[j.ref]||24000, df=dfGet(i);
