@@ -177,6 +177,12 @@
   .planspecs{font-size:13px;line-height:1.8;margin-bottom:12px}
   .titleblock{border:1px solid var(--ink);border-radius:6px;padding:10px;font-size:13px}
   .sw{width:34px;height:34px;border-radius:8px;border:1px solid var(--line)}
+  .swgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 6px}
+  .swopt{text-align:center;cursor:pointer}
+  .swbig{aspect-ratio:1;border-radius:12px;border:1px solid var(--line)}
+  .swopt.on .swbig{outline:3px solid var(--accent);outline-offset:1px}
+  .swname{font-size:11px;margin-top:5px;line-height:1.2;color:var(--muted)}
+  .swopt.on .swname{color:var(--ink);font-weight:700}
   .tradeic{width:38px;height:38px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
   /* dark mode — lighter iOS-style grey, not pure black */
   body.theme-dark{--bg:#1c1c1e;--card:#2c2c2e;--card2:#3a3a3c;--ink:#f2f2f7;--muted:#9a9aa0;--line:#3a3a3c;--shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -300,7 +306,7 @@ function seedDB(){
   return {
     jobs:JSON.parse(JSON.stringify(JOBS)),
     busy:JSON.parse(JSON.stringify(INSTALLER_BUSY)),
-    cm:{}, df:{}, docs:{}, photos:{},
+    cm:{}, df:{}, docs:{}, photos:{}, sel:{},
     msgs:{},            // jobIndex -> [{from,text,at}]
     paid:{},            // jobIndex -> count of milestones paid
     reports:{},         // jobIndex -> {rooms:{name:bool}, notes, sent}
@@ -549,7 +555,7 @@ function checkInbox(){
   if(DB.inbox>=INBOX_QUEUE.length){toast('Inbox empty — no new jobs');return;}
   const nj=JSON.parse(JSON.stringify(INBOX_QUEUE[DB.inbox]));DB.inbox++;JOBS.unshift(nj);
   // shift index-keyed state so existing jobs keep their check-measure/drafting/etc.
-  ['cm','df','docs','photos','msgs','reports','paid','invited'].forEach(key=>{
+  ['cm','df','docs','photos','sel','msgs','reports','paid','invited'].forEach(key=>{
     const src=DB[key],out={};Object.keys(src).forEach(k=>{const n=parseInt(k,10);out[isNaN(n)?k:n+1]=src[k];});DB[key]=out;
   });
   cmState=DB.cm;dfState=DB.df;docState=DB.docs;uploaded=DB.photos;
@@ -794,16 +800,72 @@ function payNext(i){
   if(pc>=p.milestones.length){toast('All instalments paid — thank you!');return;}
   DB.paid[i]=pc+1;save();toast('Payment received: '+money(p.milestones[pc].amt));render();
 }
+/* Real Laminex Australia colour range (Colour Collection: Whites & Neutrals,
+   Minerals, Woodgrains) + hardware finishes. Swatch hex are representative of
+   each décor. Source: laminex.com.au colour collection. */
+const LAMINEX={
+  'Whites & Neutrals':[
+    {n:'Polar White',h:'#F4F4F1'},{n:'Natural White',h:'#EFEBE0'},{n:'Milk',h:'#EDE9E1'},
+    {n:'Surf',h:'#DBDEDC'},{n:'Oyster Grey',h:'#C9C6BC'},{n:'Domain',h:'#B7AE9E'},
+    {n:'Fossil',h:'#8E8B84'},{n:'Seasalt',h:'#6E7370'},{n:'Black',h:'#1C1C1C'}
+  ],
+  'Stone & Marble':[
+    {n:'Calacatta Marble',h:'#ECEAE4'},{n:'Calacatta Gold',h:'#EDE7DA'},{n:'Calacatta Majore',h:'#E5E4E1'},
+    {n:'Creamy Marquina',h:'#E7E0D2'},{n:'Castille Gold',h:'#CDBB9C'},{n:'Darkside Marble',h:'#2E2C2B'},
+    {n:'Black Sky',h:'#23262A'}
+  ],
+  'Woodgrains':[
+    {n:'Natural Walnut',h:'#6E4A2E'},{n:'Sublime Teak',h:'#7A5334'},{n:'Planked Urban Oak',h:'#A9855E'},
+    {n:'Seasoned Oak',h:'#B7936A'},{n:'Aged Ash',h:'#9C948A'},{n:'Blackened Legno',h:'#2A2520'}
+  ]
+};
+const HARDWARE=[
+  {n:'Brushed Brass',h:'#B08D57'},{n:'Matte Black',h:'#1C1C1E'},
+  {n:'Brushed Nickel',h:'#B8BBBD'},{n:'Polished Chrome',h:'#C7CDD2'}
+];
+const SEL_FIELDS=[
+  {key:'door',      label:'Door style & colour', groups:['Whites & Neutrals','Woodgrains']},
+  {key:'carcass',   label:'Carcass',             groups:['Whites & Neutrals']},
+  {key:'benchtop',  label:'Benchtop',            groups:['Stone & Marble','Whites & Neutrals']},
+  {key:'splashback',label:'Splashback',          groups:['Stone & Marble','Whites & Neutrals']},
+  {key:'handles',   label:'Handles / hardware',  hardware:true},
+  {key:'kick',      label:'Kickboard',           groups:['Whites & Neutrals']}
+];
+function laminexFind(name){for(const g in LAMINEX){const o=LAMINEX[g].find(x=>x.n===name);if(o)return o;}return HARDWARE.find(x=>x.n===name)||null;}
+function selGet(i){
+  if(!DB.sel[i]){
+    DB.sel[i]={
+      door:{n:'Natural White',h:'#EFEBE0',b:'Laminex'},
+      carcass:{n:'Polar White',h:'#F4F4F1',b:'Laminex'},
+      benchtop:{n:'Calacatta Marble',h:'#ECEAE4',b:'Laminex'},
+      splashback:{n:'Calacatta Marble',h:'#ECEAE4',b:'Laminex'},
+      handles:{n:'Brushed Brass',h:'#B08D57',b:'Hardware'},
+      kick:{n:'Black',h:'#1C1C1C',b:'Laminex'}
+    };
+    save();
+  }
+  return DB.sel[i];
+}
 function clientSelections(i){
-  const f=cmGet(i).finishes, k=cmGet(i).areas[0];
-  return [
-    {label:'Door style & colour', val:f.door, sw:'#efe9dd'},
-    {label:'Carcass', val:f.carcass, sw:'#ffffff'},
-    {label:'Benchtop', val:k.benchtop.mat, sw:'#e7e1d7'},
-    {label:'Splashback', val:k.splash.mat, sw:'#e3e7ea'},
-    {label:'Handles / hardware', val:f.handles, sw:'#b08d57'},
-    {label:'Kickboard', val:f.kick, sw:'#1c1c1e'}
-  ];
+  const s=selGet(i);
+  return SEL_FIELDS.map(f=>({key:f.key,label:f.label,val:s[f.key].n,brand:s[f.key].b,sw:s[f.key].h}));
+}
+function openColourPicker(i,key){
+  const f=SEL_FIELDS.find(x=>x.key===key),cur=selGet(i)[key];
+  const cell=o=>`<div class="swopt ${cur.n===o.n?'on':''}" onclick="pickColour(${i},'${key}','${o.h}','${o.n}')"><div class="swbig" style="background:${o.h}"></div><div class="swname">${esc(o.n)}</div></div>`;
+  let body;
+  if(f.hardware){body=`<div class="cmsub">Hardware finish</div><div class="swgrid">${HARDWARE.map(cell).join('')}</div>`;}
+  else{body=f.groups.map(g=>`<div class="cmsub">Laminex · ${g}</div><div class="swgrid">${LAMINEX[g].map(cell).join('')}</div>`).join('');}
+  $('#sheet').innerHTML=`<div class="grab"></div><b style="font-size:19px">${esc(f.label)}</b>
+    <div class="muted" style="font-size:13px;margin:2px 0 4px">${f.hardware?'Choose a hardware finish.':'Real Laminex colours — tap a swatch to select.'}</div>
+    ${body}
+    <button class="btn primary" style="margin-top:8px" onclick="closeSheet()">Done</button>`;
+  openSheet();
+}
+function pickColour(i,key,hex,name){
+  const brand=SEL_FIELDS.find(x=>x.key===key).hardware?'Hardware':'Laminex';
+  DB.sel[i][key]={n:name,h:hex,b:brand};save();
+  render();openColourPicker(i,key);toast(name+' selected');
 }
 function jobSchedule(i){
   const j=JOBS[i], ins=installer(j.installer);
@@ -839,22 +901,22 @@ function buildPDF(title,lines){
   return new Blob([pdf],{type:'application/pdf'});
 }
 function downloadPlanPDF(i,rev){
-  const j=JOBS[i],k=cmGet(i).areas[0],f=cmGet(i).finishes;
-  const lines=['',j.ref+'   '+j.client,j.addr,'','Revision '+rev,'','Benchtop:  '+k.benchtop.mat,'Doors:     '+f.door,'Handles:   '+f.handles,'Kickboard: '+f.kick,'','Wall runs:'].concat((k.walls||[]).map(w=>'   Wall '+w.id+':  '+w.len+' mm'),['','Mii Kitchens · Drawn '+TEAM.drafters[0].name]);
+  const j=JOBS[i],k=cmGet(i).areas[0],s=selGet(i);
+  const lines=['',j.ref+'   '+j.client,j.addr,'','Revision '+rev,'','Laminex selections:','  Benchtop:  '+s.benchtop.n,'  Doors:     '+s.door.n,'  Carcass:   '+s.carcass.n,'  Splashback:'+s.splashback.n,'  Handles:   '+s.handles.n,'  Kickboard: '+s.kick.n,'','Wall runs:'].concat((k.walls||[]).map(w=>'   Wall '+w.id+':  '+w.len+' mm'),['','Mii Kitchens · Drawn '+TEAM.drafters[0].name]);
   const blob=buildPDF(j.ref+' Kitchen Plan — Rev '+rev,lines);
   const url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=j.ref+'-plan-Rev'+rev+'.pdf';document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Downloaded '+j.ref+'-plan-Rev'+rev+'.pdf');
 }
 function viewPlan(i){
-  const j=JOBS[i], rev=window._planRev||'C', k=cmGet(i).areas[0], f=cmGet(i).finishes;
+  const j=JOBS[i], rev=window._planRev||'C', k=cmGet(i).areas[0], s=selGet(i);
   const spec=(a,b)=>`<div><span class="muted">${esc(a)}: </span>${esc(b)}</div>`;
   return `<div class="wrap">
     <div class="back" onclick="go('client',${i})">‹ Your plans</div>
     <div class="plansheet">
       <div class="plantitle">KITCHEN — PLAN · REV ${esc(rev)}</div>
       <div class="plandiag">${areaDiagram(k)}</div>
-      <div class="planspecs">${spec('Benchtop',k.benchtop.mat)}${spec('Doors',f.door)}${spec('Handles',f.handles)}${spec('Kickboard',f.kick)}</div>
+      <div class="planspecs">${spec('Benchtop',s.benchtop.n+' — Laminex')}${spec('Doors',s.door.n+' — Laminex')}${spec('Handles',s.handles.n)}${spec('Kickboard',s.kick.n+' — Laminex')}</div>
       <div class="titleblock">
         <div><b>${esc(j.ref)}</b> · ${esc(j.client)}</div>
         <div class="muted">${esc(j.addr)}</div>
@@ -884,8 +946,8 @@ function viewClient(i){
     <div class="card"><b>Your plans</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Tap a revision to view the PDF.</div>
       ${df.revisions.slice().reverse().map(r=>`<div class="doc" onclick="openPlan(${i},'${r.rev}')"><div class="docico">PDF</div><div style="flex:1"><div style="font-weight:700">Plan set — Rev ${esc(r.rev)}</div><div class="muted" style="font-size:13px">${esc(r.date)} · ${r.state==='current'?'Latest':(r.state==='approved'?'Approved':'Superseded')}</div></div><span class="muted">›</span></div>`).join('')}
     </div>
-    <div class="card"><b>Your selections</b><div class="muted" style="font-size:13px;margin:2px 0 4px">Colours &amp; hardware for your kitchen.</div>
-      ${sel.map(s=>`<div class="doc"><div class="sw" style="background:${s.sw}"></div><div style="flex:1"><div style="font-weight:700">${esc(s.label)}</div><div class="muted" style="font-size:13px">${esc(s.val)}</div></div></div>`).join('')}
+    <div class="card"><b>Your selections</b><div class="muted" style="font-size:13px;margin:2px 0 4px">Genuine Laminex colours &amp; hardware — tap any to change.</div>
+      ${sel.map(s=>`<div class="doc" onclick="openColourPicker(${i},'${s.key}')" style="cursor:pointer"><div class="sw" style="background:${s.sw}"></div><div style="flex:1"><div style="font-weight:700">${esc(s.label)}</div><div class="muted" style="font-size:13px">${esc(s.val)}${s.brand==='Laminex'?' · Laminex':''}</div></div><span class="muted">›</span></div>`).join('')}
     </div>
     <div class="card"><b>Your investment</b>
       <div class="row" style="margin:8px 0 6px"><div style="font-size:28px;font-weight:800">${money(p.total)}</div><span class="spacer"></span><span class="muted" style="font-size:13px">incl. GST</span></div>
