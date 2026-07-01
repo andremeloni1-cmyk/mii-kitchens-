@@ -13,7 +13,7 @@
     --shadow:0 8px 24px rgba(30,25,25,.06);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;background:var(--bg);color:var(--ink);
+  html,body{margin:0;background:var(--bg);color:var(--ink);overflow-x:hidden;
     font-family:-apple-system,"SF Pro Display",system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased}
   body{padding-bottom:96px;max-width:520px;margin:0 auto;position:relative;min-height:100vh}
@@ -572,7 +572,6 @@ function viewJobs(){
       <div class="stat"><div class="n">${sched}</div><div class="l">Booked</div></div>
       <div class="stat dark"><div class="n" style="font-size:20px">${money(jobsValue())}</div><div class="l">Value</div></div>
     </div>
-    <button class="wide" onclick="checkInbox()">✉️ Check inbox for new jobs${DB.inbox<INBOX_QUEUE.length?` <span class="badge b-new" style="font-size:11px;margin-left:4px">${INBOX_QUEUE.length-DB.inbox} waiting</span>`:''}</button>
     <button class="wide" onclick="go('installsched')">📅 Install schedule — assign installers</button>
     <div class="search"><span>🔍</span><input value="${esc(jobQuery)}" oninput="jobSearch(this.value)" placeholder="Search jobs, clients, addresses…" style="border:0;background:transparent;font:inherit;color:var(--ink);flex:1;outline:none"></div>
     <div class="filters" id="jobFilters">
@@ -963,10 +962,10 @@ function areaCard(i,a,k){
     <div class="diag" id="cmdiag-${i}-${k}">${areaDiagram(a)}</div>
     <div class="muted" style="font-size:12px;text-align:center;margin-bottom:2px">Top-down layout · updates as you enter wall sizes · not to scale</div>
     <div class="cmsub">Services</div>
-    ${a.services.map((s,si)=>`<div class="svc"><select onchange="cmEditSvc(${i},${k},${si},'type',this.value)" style="border:0;background:transparent;font:inherit;font-weight:800;color:var(--accent)">${['Power','Plumb','Gas','Duct'].map(t=>`<option ${s.type===t?'selected':''}>${t}</option>`).join('')}</select><input value="${esc(s.label)}" oninput="cmEditSvc(${i},${k},${si},'label',this.value)" style="flex:1;border:0;background:transparent;font:inherit" placeholder="what"><input class="pos" value="${esc(s.pos)}" oninput="cmEditSvc(${i},${k},${si},'pos',this.value)" style="border:0;background:transparent;font:inherit;text-align:right" placeholder="where"></div>`).join('')}
+    ${a.services.map((s,si)=>`<div class="svc"><select onchange="cmEditSvc(${i},${k},${si},'type',this.value)" style="flex:none;border:0;background:transparent;font:inherit;font-weight:800;color:var(--accent);padding:0">${['Power','Plumb','Gas','Duct'].map(t=>`<option ${s.type===t?'selected':''}>${t}</option>`).join('')}</select><input value="${esc(s.label)}" oninput="cmEditSvc(${i},${k},${si},'label',this.value)" style="flex:1.3;min-width:0;border:0;background:transparent;font:inherit" placeholder="what"><input value="${esc(s.pos)}" oninput="cmEditSvc(${i},${k},${si},'pos',this.value)" style="flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:13px;color:var(--muted);text-align:right" placeholder="where"></div>`).join('')}
     <div class="addrow" onclick="cmAddSvc(${i},${k})">＋ add service point</div>
     <div class="cmsub">Appliances &amp; cut-outs</div>
-    ${a.appliances.map((ap,ai)=>`<div class="svc"><input value="${esc(ap.name)}" oninput="cmEditAppl(${i},${k},${ai},'name',this.value)" style="flex:1;border:0;background:transparent;font:inherit" placeholder="appliance"><input class="pos" value="${esc(ap.cut)}" oninput="cmEditAppl(${i},${k},${ai},'cut',this.value)" style="border:0;background:transparent;font:inherit;text-align:right" placeholder="cut-out"></div>`).join('')}
+    ${a.appliances.map((ap,ai)=>`<div class="svc"><input value="${esc(ap.name)}" oninput="cmEditAppl(${i},${k},${ai},'name',this.value)" style="flex:1.5;min-width:0;border:0;background:transparent;font:inherit" placeholder="appliance"><input value="${esc(ap.cut)}" oninput="cmEditAppl(${i},${k},${ai},'cut',this.value)" style="flex:1;min-width:0;border:0;background:transparent;font:inherit;font-size:13px;color:var(--muted);text-align:right" placeholder="cut-out"></div>`).join('')}
     <div class="addrow" onclick="cmAddAppl(${i},${k})">＋ add appliance</div>
     <div class="cmsub">Benchtop</div>
     ${specRow('Material',a.benchtop.mat)}
