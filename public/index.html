@@ -178,6 +178,23 @@
   .titleblock{border:1px solid var(--ink);border-radius:6px;padding:10px;font-size:13px}
   .sw{width:34px;height:34px;border-radius:8px;border:1px solid var(--line)}
   .tradeic{width:38px;height:38px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+  /* dark mode — lighter iOS-style grey, not pure black */
+  body.theme-dark{--bg:#1c1c1e;--card:#2c2c2e;--card2:#3a3a3c;--ink:#f2f2f7;--muted:#9a9aa0;--line:#3a3a3c;--shadow:0 8px 24px rgba(0,0,0,.4)}
+  body.theme-dark .tabbar{background:#2c2c2e;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  body.theme-dark .icoBtn{background:#2c2c2e}
+  body.theme-dark .seg .o.on{background:#54545a;color:#fff}
+  body.theme-dark .pill.on{background:#54545a;color:#fff}
+  body.theme-dark .avatar,body.theme-dark .mono,body.theme-dark .tradeic{background:#48484a;color:#e5e5ea}
+  body.theme-dark .thumb{background:#3a3a3c}
+  body.theme-dark .addph{border-color:#4a4a4c}
+  body.theme-dark .stat.dark,body.theme-dark .calcard{background:#000}
+  body.theme-dark .toast{background:#3a3a3c;color:#fff}
+  body.theme-dark .docico{background:#3a2418}
+  body.theme-dark .b-conf{background:#12351f}
+  body.theme-dark .b-prog{background:#3a2f14}
+  body.theme-dark .b-sched{background:#16283f}
+  body.theme-dark .b-new{background:#3a2114}
+  body.theme-dark .tf,body.theme-dark input,body.theme-dark select,body.theme-dark textarea{background:#3a3a3c;color:#f2f2f7;border-color:#4a4a4c}
 </style>
 </head>
 <body>
@@ -446,12 +463,25 @@ function viewReports(){
 }
 function viewSettings(){
   const acct=`<div class="card"><b>Account</b><div class="assignrow" style="margin-top:4px"><div class="avatar">${roleUser()?roleUser().initials:(isClient()?'👤':'🏢')}</div><div style="flex:1"><div style="font-weight:700">${esc(roleLabel())}</div><div class="muted" style="font-size:13px">${roleUser()?(isDrafter()?'Draftsperson':'Installer'):(isClient()?'Client':'Office · full access')}</div></div></div><button class="btn ghost" style="width:100%;margin-top:6px" onclick="openRoleSwitcher()">⇄ Switch account</button></div>`;
-  const appearance=`<div class="card"><div class="row"><div><b>Appearance</b><div class="muted" style="font-size:14px">Light, dark, or follow your device.</div></div></div><div class="seg" style="margin-top:12px"><div class="o">Light</div><div class="o">Dark</div><div class="o on">Auto</div></div></div>`;
+  const prof=getProfile();
+  const profile=`<div class="card"><b>Your details</b><div class="muted" style="font-size:13px;margin:2px 0 8px">Your name and role in the company.</div>
+    <label class="fld">Full name</label><input class="tf" value="${esc(prof.name)}" oninput="setProfile('name',this.value)">
+    <label class="fld">Role</label>
+    <select class="tf" onchange="setProfile('role',this.value)">${['Owner / Admin','Office manager','Draftsperson','Installer','Sales'].map(r=>`<option ${prof.role===r?'selected':''}>${r}</option>`).join('')}</select></div>`;
+  const password=`<div class="card"><b>Password</b><div class="muted" style="font-size:13px;margin:2px 0 8px">Change your login password.</div>
+    <label class="fld">Current password</label><input class="tf" type="password" placeholder="••••••••">
+    <label class="fld">New password</label><input class="tf" type="password" placeholder="At least 8 characters">
+    <label class="fld">Confirm new password</label><input class="tf" type="password">
+    <button class="btn primary" style="margin-top:12px" onclick="toast('Password updated (demo)')">Update password</button></div>`;
+  const th=localStorage.getItem('mk_theme')||'auto';
+  const appearance=`<div class="card"><div class="row"><div><b>Appearance</b><div class="muted" style="font-size:14px">Light, dark, or follow your phone.</div></div></div><div class="seg" style="margin-top:12px"><div class="o ${th==='light'?'on':''}" onclick="setTheme('light')">Light</div><div class="o ${th==='dark'?'on':''}" onclick="setTheme('dark')">Dark</div><div class="o ${th==='auto'?'on':''}" onclick="setTheme('auto')">Auto</div></div></div>`;
   if(currentRole!=='office'){
-    return `<div class="wrap"><h1 style="margin-top:6px">Account</h1><div class="sub">Signed in as ${esc(roleLabel())}</div>${acct}${appearance}<div style="height:8px"></div></div>`;
+    return `<div class="wrap"><h1 style="margin-top:6px">Account</h1><div class="sub">Signed in as ${esc(roleLabel())}</div>${acct}${profile}${password}${appearance}<div style="height:8px"></div></div>`;
   }
   return `<div class="wrap"><h1 style="margin-top:6px">Settings</h1><div class="sub">Company, team &amp; integrations</div>
     ${acct}
+    ${profile}
+    ${password}
     ${appearance}
     <div class="card"><b>Google integration</b>
       <div class="muted" style="font-size:14px;margin:6px 0 12px">Connect Google to sync jobs to Calendar, save PDFs to Drive and email clients from Gmail.</div>
@@ -920,6 +950,12 @@ function render(){
   const tabs=currentRole==='office'?OFFICE_TABS:(isClient()?CLIENT_TABS:STAFF_TABS);
   $('#tabbar').innerHTML=tabs.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ICONS[k]||ic}</span>${l}</button>`).join('');
 }
+function getProfile(){try{return JSON.parse(localStorage.getItem('mk_profile'))||{name:'André Meloni',role:'Owner / Admin'};}catch(e){return {name:'André Meloni',role:'Owner / Admin'};}}
+function setProfile(k,v){const p=getProfile();p[k]=v;localStorage.setItem('mk_profile',JSON.stringify(p));}
+function applyTheme(){const pref=localStorage.getItem('mk_theme')||'auto';const dark=pref==='dark'||(pref==='auto'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.body.classList.toggle('theme-dark',dark);}
+function setTheme(p){localStorage.setItem('mk_theme',p);applyTheme();render();}
+try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if((localStorage.getItem('mk_theme')||'auto')==='auto')applyTheme();});}catch(e){}
+applyTheme();
 render();
 </script>
 </body>
