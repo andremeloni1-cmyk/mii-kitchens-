@@ -140,6 +140,15 @@
   .toast.show{opacity:1;bottom:112px}
   .demoTag{position:fixed;top:8px;right:8px;background:rgba(28,28,30,.8);color:#fff;font-size:10px;font-weight:700;
     padding:4px 9px;border-radius:999px;letter-spacing:.05em;z-index:90}
+  /* check-measure */
+  .cmh{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 2px}
+  .cmsub{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:15px 0 2px}
+  .specrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+  .specrow .k{color:var(--muted);font-size:14px}
+  .specrow .v{margin-left:auto;border:0;background:transparent;text-align:right;font:inherit;color:var(--ink);font-weight:600;width:58%}
+  .svc{display:flex;align-items:center;gap:8px;font-size:14px;padding:8px 0;border-top:1px solid var(--line)}
+  .svc .pos{color:var(--muted);margin-left:auto;text-align:right;max-width:52%}
+  .addrow{color:var(--accent);font-weight:700;font-size:14px;padding:10px 0 2px}
 </style>
 </head>
 <body>
@@ -203,6 +212,53 @@ const DOCS = [
   {t:'Check-measure notes.pdf', s:'1.1 MB · 22 Jun'}
 ];
 const STAGES = ['Check-measure','Drafting & design','Production','Install','Complete'];
+
+/* Site check-measure — realistic pre-filled example (QU3190 Nuzzo) */
+const CM_TEMPLATE = {
+  ready:{roughin:true, plaster:true, floor:false, power:true, access:true},
+  areas:[
+    { name:'Kitchen',
+      walls:[{id:'A',len:'3120'},{id:'B',len:'2480'},{id:'C',len:'900'}],
+      ceiling:'2700', floorLevel:'Out 8mm — low toward window',
+      services:[
+        {type:'Power', label:'Bench GPOs (×4)', pos:'1100 AFF · 300 from L'},
+        {type:'Power', label:'Oven + cooktop circuits', pos:'in tall cabinet'},
+        {type:'Plumb', label:'Sink waste + hot/cold', pos:'centre wall B'},
+        {type:'Plumb', label:'Dishwasher', pos:'left of sink'},
+        {type:'Gas',   label:'Cooktop', pos:'wall A · 600 from R'},
+        {type:'Duct',  label:'Rangehood duct', pos:'ceiling above cooktop'}
+      ],
+      appliances:[
+        {name:'Oven — 600 u/bench', cut:'560 × 595 × 550'},
+        {name:'Gas cooktop — 900', cut:'880 × 480'},
+        {name:'Rangehood — 900 undermount', cut:'—'},
+        {name:'Dishwasher — 600 integ.', cut:'600 × 820 × 570'},
+        {name:'Fridge cavity', cut:'900 W × 1750 H'}
+      ],
+      benchtop:{mat:'20mm stone — Calacatta', edge:'Pencil round', sink:'Undermount double', taps:'1 hole'},
+      splash:{h:'600 / to window sill', mat:'Stone to match'},
+      photos:[], notes:'Window on wall B ~60mm wider than plan — confirm overhead sizing with drafter.'
+    },
+    { name:"Butler's Pantry",
+      walls:[{id:'A',len:'2400'},{id:'B',len:'1600'}], ceiling:'2700', floorLevel:'Level',
+      services:[{type:'Power',label:'GPOs (×2)',pos:'1100 AFF'},{type:'Plumb',label:'2nd sink',pos:'wall A'}],
+      appliances:[{name:'Microwave — 45cm', cut:'—'}],
+      benchtop:{mat:'Laminate', edge:'ABS', sink:'Topmount single', taps:'1 hole'},
+      splash:{h:'600', mat:'Laminate'}, photos:[], notes:'' },
+    { name:'Laundry',
+      walls:[{id:'A',len:'1800'}], ceiling:'2550', floorLevel:'Out 5mm',
+      services:[{type:'Plumb',label:'Trough + washer taps',pos:'wall A'}],
+      appliances:[{name:'Washer / dryer stack', cut:'—'}],
+      benchtop:{mat:'Laminate', edge:'ABS', sink:'45L laundry trough', taps:'—'},
+      splash:{h:'450', mat:'Tiles by others'}, photos:[], notes:'' }
+  ],
+  finishes:{door:'Shaker 2pac — Natural White', carcass:'White melamine', handles:'Brushed brass bar 160mm', kick:'Matt black · 100mm'},
+  access:{parking:'Driveway — tight', lift:'Ground floor', delivery:'Front, via side gate', trades:'Tiler on site install week'},
+  measuredBy:'Sam Turner', date:'2026-06-22'
+};
+let cmState={};
+function cmGet(i){ if(!cmState[i]) cmState[i]=JSON.parse(JSON.stringify(CM_TEMPLATE)); return cmState[i]; }
+function cmPhotoCount(i){ return cmGet(i).areas.reduce((n,a)=>n+((a.photos||[]).length),0); }
 
 /* ---------------- helpers ---------------- */
 const $=(s)=>document.querySelector(s);
@@ -321,13 +377,14 @@ function viewJob(i){
     <div class="muted" style="margin-bottom:2px">${esc(j.builder)} · ${esc(j.jobno)}</div>
     <div class="line muted" style="font-size:14px">📍 ${esc(j.addr)} &nbsp; 📅 ${esc(j.date)} · ${esc(j.time)}</div>
 
-    <div class="stage"><div class="sh">${sn(0)}<div style="flex:1"><b>Site check-measure</b><div class="muted" style="font-size:13px">Measurements &amp; site photos</div></div></div>
+    <div class="stage"><div class="sh">${sn(0)}<div style="flex:1"><b>Site check-measure</b><div class="muted" style="font-size:13px">Measurements, services &amp; photos</div></div></div>
       <div class="body">
-        <div class="thumbs">
-          ${ph.map((u,k)=>`<div class="thumb" style="background-image:url('${u}')"></div>`).join('')}
-          <label class="addph"><input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(${i},this)"><div style="font-size:22px">＋</div>Add<br>photos</label>
+        <div class="row" style="gap:20px;margin-bottom:12px">
+          <div><div style="font-weight:800;font-size:20px">${cmGet(i).areas.length}</div><div class="muted" style="font-size:12px">areas</div></div>
+          <div><div style="font-weight:800;font-size:20px">${cmPhotoCount(i)}</div><div class="muted" style="font-size:12px">photos</div></div>
+          <div><div style="font-weight:800;font-size:20px">${Object.values(cmGet(i).ready).filter(Boolean).length}/5</div><div class="muted" style="font-size:12px">site ready</div></div>
         </div>
-        <div class="muted" style="font-size:13px">${ph.length? ph.length+' photo(s) from site':'Tap ＋ to add site photos (kitchen, walls, services).'}</div>
+        <button class="btn primary" onclick="go('checkmeasure',${i})">Open site check-measure ›</button>
       </div></div>
 
     <div class="stage"><div class="sh">${sn(1)}<div style="flex:1"><b>Drafting &amp; design</b><div class="muted" style="font-size:13px">Assigned draftsperson draws the kitchen</div></div></div>
@@ -403,6 +460,74 @@ function viewInstaller(i){
 }
 function addInsPhotos(i,input){const key='ins'+i;uploaded[key]=uploaded[key]||[];[...input.files].forEach(f=>{const r=new FileReader();r.onload=e=>{uploaded[key].push(e.target.result);render();};r.readAsDataURL(f);});toast(input.files.length+' photo(s) added');}
 
+/* ---- site check-measure page ---- */
+function readyItem(label,on){return `<div class="chk ${on?'on':''}" onclick="this.classList.toggle('on')"><span class="box">✓</span>${esc(label)}</div>`;}
+function specRow(k,v){return `<div class="specrow"><span class="k">${esc(k)}</span><input class="v" value="${esc(v)}"></div>`;}
+function svcTag(t){const m={Power:['#eef4fc','#2f6fd0'],Plumb:['#e8f8f2','#1f9d86'],Gas:['#fdefe7','#c2461a'],Duct:['#f2eefb','#6b4fc0']};const[bg,fg]=m[t]||m.Power;return `<span style="background:${bg};color:${fg};font-size:11px;font-weight:800;border-radius:6px;padding:3px 8px">${esc(t)}</span>`;}
+function areaCard(i,a,k){
+  return `<div class="card" style="margin:10px 0"><div class="row"><b style="flex:1;font-size:18px">${esc(a.name)}</b><span class="muted" style="font-size:13px">Area ${k+1}</span></div>
+    <div class="cmsub">Wall runs &amp; heights</div>
+    ${a.walls.map(w=>specRow('Wall '+w.id,w.len+' mm')).join('')}
+    ${specRow('Ceiling height',a.ceiling+' mm')}
+    ${specRow('Floor level',a.floorLevel)}
+    <div class="cmsub">Services</div>
+    ${a.services.map(s=>`<div class="svc">${svcTag(s.type)}<span>${esc(s.label)}</span><span class="pos">${esc(s.pos)}</span></div>`).join('')}
+    <div class="addrow" onclick="toast('Add service point (demo)')">＋ add service point</div>
+    <div class="cmsub">Appliances &amp; cut-outs</div>
+    ${a.appliances.map(ap=>`<div class="svc"><span style="flex:1">${esc(ap.name)}</span><span class="pos">${esc(ap.cut)}</span></div>`).join('')}
+    <div class="addrow" onclick="toast('Add appliance (demo)')">＋ add appliance</div>
+    <div class="cmsub">Benchtop</div>
+    ${specRow('Material',a.benchtop.mat)}
+    ${specRow('Edge profile',a.benchtop.edge)}
+    ${specRow('Sink / taps',a.benchtop.sink+' · '+a.benchtop.taps)}
+    <div class="cmsub">Splashback</div>
+    ${specRow('Height / material',a.splash.h+' · '+a.splash.mat)}
+    <div class="cmsub">Site photos</div>
+    <div class="thumbs" id="cmph-${i}-${k}">
+      ${(a.photos||[]).map(u=>`<div class="thumb" style="background-image:url('${u}')"></div>`).join('')}
+      <label class="addph"><input type="file" accept="image/*" multiple style="display:none" onchange="cmAddPhoto(${i},${k},this)"><div style="font-size:22px">＋</div>Add</label>
+    </div>
+    <label class="fld">Notes / plan discrepancies</label>
+    <textarea class="tf" placeholder="e.g. wall moved, window size change, extra nib…">${esc(a.notes||'')}</textarea>
+  </div>`;
+}
+function cmAddArea(i){const c=cmGet(i);const blank={name:'New area',walls:[{id:'A',len:''}],ceiling:'',floorLevel:'',services:[],appliances:[],benchtop:{mat:'',edge:'',sink:'',taps:''},splash:{h:'',mat:''},photos:[],notes:''};c.areas.push(blank);document.getElementById('cmAreas').insertAdjacentHTML('beforeend',areaCard(i,blank,c.areas.length-1));toast('Area added');}
+function cmAddPhoto(i,k,input){const c=cmGet(i);const cont=document.getElementById('cmph-'+i+'-'+k);[...input.files].forEach(f=>{const r=new FileReader();r.onload=e=>{c.areas[k].photos.push(e.target.result);const d=document.createElement('div');d.className='thumb';d.style.backgroundImage="url('"+e.target.result+"')";cont.insertBefore(d,cont.lastElementChild);};r.readAsDataURL(f);});toast(input.files.length+' photo(s) added');}
+function cmComplete(i){toast('Check-measure complete — PDF generated, sent to drafting');setTimeout(()=>go('job',i),1000);}
+function viewCheckMeasure(i){
+  const j=JOBS[i], c=cmGet(i);
+  return `<div class="wrap">
+    <div class="back" onclick="go('job',${i})">‹ ${esc(j.ref)} ${esc(j.client)}</div>
+    <h2>Site check-measure</h2>
+    <div class="muted" style="margin-bottom:2px">${esc(j.ref)} ${esc(j.client)} · ${esc(j.builder)}</div>
+    <div class="line muted" style="font-size:14px">📍 ${esc(j.addr)}</div>
+    <div class="card"><b>Site ready?</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Confirm before you measure.</div>
+      ${readyItem('Rough-in complete',c.ready.roughin)}
+      ${readyItem('Walls plastered',c.ready.plaster)}
+      ${readyItem('Floor down',c.ready.floor)}
+      ${readyItem('Power on',c.ready.power)}
+      ${readyItem('Access clear',c.ready.access)}
+    </div>
+    <div class="cmh"><b style="font-size:18px">Areas</b><span class="muted" style="font-size:13px">${c.areas.length} measured</span></div>
+    <div id="cmAreas">${c.areas.map((a,k)=>areaCard(i,a,k)).join('')}</div>
+    <button class="btn ghost" style="width:100%" onclick="cmAddArea(${i})">＋ Add area</button>
+    <div class="card" style="margin-top:14px"><b>Finishes</b>
+      ${specRow('Door style / colour',c.finishes.door)}${specRow('Carcass',c.finishes.carcass)}${specRow('Handles',c.finishes.handles)}${specRow('Kickboard',c.finishes.kick)}
+    </div>
+    <div class="card"><b>Access &amp; install logistics</b>
+      ${specRow('Parking',c.access.parking)}${specRow('Stairs / lift',c.access.lift)}${specRow('Delivery access',c.access.delivery)}${specRow('Other trades',c.access.trades)}
+    </div>
+    <div class="card"><b>Sign-off</b>
+      ${specRow('Measured by',c.measuredBy)}${specRow('Date',c.date)}
+      <label class="fld">Signature</label>
+      <div style="border:1px dashed #cfced0;border-radius:12px;height:66px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px">Sign here</div>
+    </div>
+    <button class="btn primary" onclick="cmComplete(${i})">✓ Mark check-measure complete</button>
+    <div class="muted" style="font-size:13px;text-align:center;margin:8px 4px 0">Generates a check-measure PDF and hands the job to ${j.drafter?esc(drafter(j.drafter).name):'the draftsperson'} for drafting.</div>
+    <div style="height:8px"></div>
+  </div>`;
+}
+
 /* ---------------- router ---------------- */
 let state={tab:'jobs',arg:null};
 const TABS=[['jobs','📋','Jobs'],['calendar','🗓️','Calendar'],['clients','👥','Clients'],['reports','📄','Reports'],['settings','☀️','Settings']];
@@ -410,6 +535,7 @@ function go(tab,arg){state={tab,arg:arg??null};window.scrollTo(0,0);render();}
 function render(){
   const t=state.tab;
   if(t==='job')app.innerHTML=viewJob(state.arg);
+  else if(t==='checkmeasure')app.innerHTML=viewCheckMeasure(state.arg);
   else if(t==='client')app.innerHTML=viewClient(state.arg);
   else if(t==='installer')app.innerHTML=viewInstaller(state.arg);
   else if(t==='calendar')app.innerHTML=viewCalendar();
@@ -417,7 +543,7 @@ function render(){
   else if(t==='reports')app.innerHTML=viewReports();
   else if(t==='settings')app.innerHTML=viewSettings();
   else app.innerHTML=viewJobs();
-  const activeTab=['job'].includes(t)?'jobs':(['client'].includes(t)?'clients':(['installer'].includes(t)?'reports':t));
+  const activeTab=['job','checkmeasure'].includes(t)?'jobs':(['client'].includes(t)?'clients':(['installer'].includes(t)?'reports':t));
   $('#tabbar').innerHTML=TABS.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
 }
 render();
