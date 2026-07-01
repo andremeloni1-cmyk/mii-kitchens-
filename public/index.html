@@ -127,11 +127,11 @@
   .chk .box{width:22px;height:22px;border-radius:7px;border:2px solid #cfced0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
   .chk.on .box{background:var(--green);border-color:var(--green)}
   /* tab bar */
-  .tabbar{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;padding:10px 10px calc(10px + env(safe-area-inset-bottom));
-    display:flex;justify-content:space-around;background:rgba(248,247,248,.92);backdrop-filter:blur(14px);
-    border-top:1px solid var(--line)}
-  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:600;flex:1;padding:4px 0}
-  .tab .ic{width:38px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:20px}
+  .tabbar{position:fixed;left:12px;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));max-width:496px;margin:0 auto;
+    padding:8px 6px;display:flex;justify-content:space-around;background:#fff;border-radius:28px;box-shadow:0 10px 30px rgba(0,0,0,.13)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:#9a9aa0;font-size:11px;font-weight:600;flex:1;padding:2px 0}
+  .tab .ic{width:54px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:12px}
+  .tab .ic svg{width:24px;height:24px;display:block}
   .tab.on{color:var(--accent)}
   .tab.on .ic{background:#fbe3d7}
   .hide{display:none!important}
@@ -890,6 +890,13 @@ function viewDocs(i){
 let state={tab:'jobs',arg:null};
 const OFFICE_TABS=[['jobs','📋','Jobs'],['calendar','🗓️','Calendar'],['clients','👥','Clients'],['reports','📄','Reports'],['settings','☀️','Settings']];
 const CLIENT_TABS=[['jobs','🏠','My kitchen'],['settings','☀️','Account']];
+const ICONS={
+  jobs:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16" rx="2.5"/><rect x="9" y="3" width="6" height="3.2" rx="1.2"/><path d="M8.5 11h7M8.5 14h7M8.5 17h4"/></svg>`,
+  calendar:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 9.5h16M8 3.5v3.4M16 3.5v3.4"/></svg>`,
+  clients:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.8 6.4a2.6 2.6 0 0 1 0 5.2"/><path d="M17 14.2a5 5 0 0 1 3.5 4.8"/></svg>`,
+  reports:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h6l4.5 4.5V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2z"/><path d="M13 3.5V8h4.5"/><path d="M9 12.5h6M9 15.5h6"/></svg>`,
+  settings:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.3"/><path d="M12 3.5v2.2M12 18.3v2.2M4.6 12h2.2M17.2 12h2.2M6.6 6.6l1.6 1.6M15.8 15.8l1.6 1.6M17.4 6.6l-1.6 1.6M8.2 15.8l-1.6 1.6"/></svg>`
+};
 const STAFF_TABS=[['jobs','📋','My jobs'],['calendar','🗓️','Calendar'],['settings','☀️','Account']];
 function go(tab,arg){state={tab,arg:arg??null};window.scrollTo(0,0);render();}
 function render(){
@@ -911,7 +918,7 @@ function render(){
   if(currentRole==='office') activeTab=['job','checkmeasure','installsched','drafting','docs'].includes(t)?'jobs':((t==='client'||t==='plan')?'clients':(t==='installer'?'reports':t));
   else activeTab=(t==='calendar')?'calendar':(t==='settings')?'settings':'jobs';
   const tabs=currentRole==='office'?OFFICE_TABS:(isClient()?CLIENT_TABS:STAFF_TABS);
-  $('#tabbar').innerHTML=tabs.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
+  $('#tabbar').innerHTML=tabs.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ICONS[k]||ic}</span>${l}</button>`).join('');
 }
 render();
 </script>
