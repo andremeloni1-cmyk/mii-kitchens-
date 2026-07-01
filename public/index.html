@@ -2,329 +2,425 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mii Kitchens Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f4f3f3" />
+<title>Mii Kitchens</title>
 <style>
   :root{
-    --bg:#f5f6f8; --card:#fff; --ink:#1f2430; --muted:#6b7280; --line:#e5e7eb; --danger:#e23b3b;
+    --bg:#f4f3f3; --card:#ffffff; --card2:#f6f5f6; --ink:#1c1c1e; --muted:#8a8a8e;
+    --line:#e9e8e9; --accent:#d9541e; --accent2:#c2461a; --green:#2ea05c; --amber:#c17d10;
+    --dark:#1c1c1e; --pink:#ef6d6d; --blue:#4a90d9; --teal:#2fb9a2; --gold:#e8934a;
+    --shadow:0 8px 24px rgba(30,25,25,.06);
   }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
-  header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;position:sticky;top:0;z-index:20}
-  h1{font-size:18px;margin:0 0 8px}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,"SF Pro Display",system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  body{padding-bottom:96px;max-width:520px;margin:0 auto;position:relative;min-height:100vh}
+  .wrap{padding:14px 16px 0}
+  h1{font-size:30px;font-weight:800;letter-spacing:-.5px;margin:2px 0 2px}
+  h2{font-size:22px;font-weight:800;letter-spacing:-.3px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:15px;margin:0 0 14px}
+  .muted{color:var(--muted)}
+  .card{background:var(--card);border-radius:22px;padding:16px 18px;box-shadow:var(--shadow);margin:12px 0}
+  .row{display:flex;gap:10px;align-items:center}
   .spacer{flex:1}
-  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;color:var(--ink)}
-  button.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
-  button.active{background:#eef2ff;border-color:#c7d2fe}
-  .navlink{font-size:13px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#fff}
-  .who{font-size:12px;color:var(--muted)}
-  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
-  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
-  .flt{font-size:12px;padding:4px 9px}
-  .flt .dot{width:8px;height:8px}
-  main{padding:16px;max-width:1100px;margin:0 auto}
-  .cal{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .dow,.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 64px}
-  .dow div{padding:8px;font-size:11px;color:var(--muted);text-align:center;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.04em}
-  .dow div:last-child{color:#9aa0aa}
-  .cell{min-height:96px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px;position:relative;min-width:0;overflow:hidden}
-  .cell.out{background:#fafbfc;color:#c2c7d0}
-  .cell.today{box-shadow:inset 0 0 0 2px #c7d2fe}
-  .cell.conflict{background:#fff4f4}
-  .cell.conflict::after{content:"⚠ clash";position:absolute;top:3px;right:4px;font-size:9px;color:var(--danger);font-weight:700}
-  .daynum{font-size:11px;color:var(--muted);margin:2px}
-  .chip{font-size:10px;line-height:1.25;color:#fff;border-radius:5px;padding:2px 5px;margin:2px 0;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .chip.meet{color:var(--ink);background:#fff !important;border:1px dashed #c7c9d0}
-  .wtot{padding:6px 4px;font-size:11px;color:var(--muted);text-align:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:#fafbfc}
-  .wtot b{display:block;color:var(--ink);font-size:14px}
-  .group{margin:18px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-  .job{background:var(--card);border:1px solid var(--line);border-left-width:5px;border-radius:10px;padding:10px 12px;margin:8px 0;display:flex;gap:10px;align-items:flex-start}
-  .job .meta{flex:1;min-width:0}
-  .job h3{margin:0 0 2px;font-size:15px}
-  .job .sub{font-size:12px;color:var(--muted);margin:1px 0}
-  .badge{display:inline-block;font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:middle}
-  .b-pending{background:#fff7e6;color:#b26a00}
-  .b-approved{background:#e7f6ec;color:#1a7f37}
-  .b-scheduled{background:#eef2ff;color:#3a48b5}
-  .b-declined{background:#fde2e2;color:#b42318}
-  .b-stage{background:#eef2ff;color:#3a48b5}
-  .acts{display:flex;flex-direction:column;gap:6px}
-  .acts button{font-size:12px;padding:5px 8px}
-  .pdf{font-size:12px}
-  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
-  .scrim.open{display:flex}
-  .modal{background:#fff;border-radius:12px;max-width:540px;width:100%;padding:18px;max-height:90vh;overflow:auto}
-  .modal h2{margin:0 0 4px;font-size:18px}
-  .kv{display:flex;gap:8px;font-size:13px;margin:6px 0}
-  .kv b{min-width:96px;color:var(--muted);font-weight:600}
-  .note{background:#fff8e6;border:1px solid #ffe8a3;border-radius:8px;padding:8px;font-size:12px;margin-top:8px}
-  .assignbox{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:12px;background:#fafbff}
-  .assignbox h4{margin:0 0 8px;font-size:13px}
-  .assignbox select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:5px 7px;margin:0 6px 6px 0}
-  a{color:#2563eb}
-  .updated{font-size:11px;color:#9aa0aa;margin-top:10px}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  .pill{border-radius:999px;padding:9px 16px;font-weight:600;font-size:14px;background:var(--card);
+    box-shadow:var(--shadow);white-space:nowrap}
+  .pill.on{background:var(--ink);color:#fff}
+  .pill.accent.on{background:var(--accent);color:#fff}
+  /* header */
+  .head{display:flex;align-items:center;gap:12px;margin:6px 0 14px}
+  .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:-1px;box-shadow:var(--shadow)}
+  .head .t{flex:1;min-width:0}
+  .icoBtn{width:46px;height:46px;border-radius:14px;background:var(--card);box-shadow:var(--shadow);
+    display:flex;align-items:center;justify-content:center;font-size:20px}
+  .icoBtn.accent{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+  /* run sheet banner */
+  .banner{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:22px;
+    padding:18px 20px;display:flex;align-items:center;box-shadow:0 10px 24px rgba(197,70,26,.28);margin:4px 0 14px}
+  .banner b{font-size:19px;font-weight:800}
+  .banner .s{opacity:.9;font-size:14px;margin-top:2px}
+  /* stat cards */
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:12px 0}
+  .stat{background:var(--card);border-radius:18px;padding:16px 10px;text-align:center;box-shadow:var(--shadow)}
+  .stat .n{font-size:26px;font-weight:800}
+  .stat .l{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;margin-top:2px}
+  .stat.dark{background:var(--dark);color:#fff}
+  .stat.dark .l{color:#b9b9bd}
+  .wide{width:100%;background:var(--card);border-radius:16px;padding:14px;box-shadow:var(--shadow);
+    display:flex;align-items:center;justify-content:center;gap:8px;font-weight:600;margin:10px 0}
+  .search{width:100%;background:var(--card);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:10px;color:var(--muted);font-size:16px;margin:10px 0}
+  .filters{display:flex;gap:9px;overflow-x:auto;padding:4px 0 10px;-ms-overflow-style:none;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  /* job card */
+  .job{background:var(--card);border-radius:22px;padding:16px 18px;box-shadow:var(--shadow);margin:12px 0}
+  .job h3{font-size:19px;font-weight:800;margin:0 0 3px;letter-spacing:-.3px}
+  .job .meta{color:var(--muted);font-size:14px;margin:0 0 10px}
+  .job .line{color:var(--muted);font-size:14px;display:flex;align-items:center;gap:7px;margin:4px 0}
+  .badge{font-size:12px;font-weight:700;border-radius:999px;padding:5px 12px;border:1.5px solid}
+  .b-prog{color:var(--amber);border-color:#e2c98a;background:#fdf7ea}
+  .b-conf{color:var(--green);border-color:#a9dcc0;background:#eefaf2}
+  .b-sched{color:var(--blue);border-color:#aecdf0;background:#eef4fc}
+  .b-new{color:var(--accent);border-color:#eec1ac;background:#fdefe7}
+  .chipcount{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:14px}
+  /* clients */
+  .clientcard{background:var(--card);border-radius:20px;box-shadow:var(--shadow);margin:12px 0;display:flex;
+    align-items:center;gap:14px;padding:14px 16px;overflow:hidden;position:relative}
+  .clientcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;border-radius:6px;background:var(--accent)}
+  .mono{width:52px;height:52px;border-radius:50%;background:#eef0f4;display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:#5b6470;font-size:16px}
+  /* calendar */
+  .calcard{background:var(--dark);color:#fff;border-radius:24px;padding:18px;margin:12px 0}
+  .calhead{display:flex;align-items:center;margin-bottom:14px}
+  .calhead .m{font-size:26px;font-weight:800}.calhead .y{font-size:26px;font-weight:800;color:#6b6b70;margin-left:6px}
+  .caltoday{background:#2c2c2e;border-radius:999px;padding:7px 16px;font-weight:700;font-size:14px}
+  .cgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0;text-align:center}
+  .cgrid .dow{color:#8a8a8e;font-size:12px;font-weight:600;padding-bottom:8px}
+  .cgrid .d{padding:9px 0;font-size:16px;position:relative}
+  .cgrid .d.out{color:#48484a}
+  .cgrid .d .dot{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);display:flex;gap:3px}
+  .cgrid .d .dot i{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  .cgrid .d .dot i.g{background:#6b6b70}
+  .cgrid .d.today span{background:var(--accent);color:#fff;border-radius:50%;width:34px;height:34px;
+    display:inline-flex;align-items:center;justify-content:center}
+  .evrow{display:flex;gap:12px;font-size:15px;padding:9px 0;border-top:1px solid var(--line)}
+  .evrow:first-child{border-top:0}
+  .evrow .dt{color:var(--blue);font-weight:600;min-width:92px}
+  .evrow .tm{color:var(--muted);min-width:64px}
+  /* detail / sections */
+  .back{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:16px;margin:2px 0 8px}
+  .stage{background:var(--card);border-radius:20px;box-shadow:var(--shadow);margin:12px 0;overflow:hidden}
+  .stage .sh{display:flex;align-items:center;gap:12px;padding:15px 18px}
+  .snum{width:30px;height:30px;border-radius:50%;background:var(--card2);color:var(--muted);font-weight:800;
+    display:flex;align-items:center;justify-content:center;font-size:14px}
+  .snum.done{background:var(--green);color:#fff}
+  .snum.active{background:var(--accent);color:#fff}
+  .stage .body{padding:0 18px 16px}
+  .thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}
+  .thumb{aspect-ratio:1;border-radius:12px;background:#e9e8ea center/cover no-repeat;position:relative;overflow:hidden}
+  .addph{aspect-ratio:1;border-radius:12px;border:2px dashed #d6d5d7;color:var(--muted);display:flex;
+    align-items:center;justify-content:center;flex-direction:column;font-size:12px;gap:2px;background:var(--card2)}
+  .assignrow{display:flex;align-items:center;gap:12px;padding:10px 0}
+  .avatar{width:42px;height:42px;border-radius:50%;background:#eef0f4;color:#5b6470;font-weight:800;
+    display:flex;align-items:center;justify-content:center}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;padding:12px 16px;
+    font-weight:700;font-size:15px}
+  .btn.primary{background:var(--accent);color:#fff;width:100%}
+  .btn.ghost{background:var(--card2);color:var(--ink)}
+  .doc{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+  .doc:first-child{border-top:0}
+  .docico{width:40px;height:44px;border-radius:8px;background:#fdefe7;color:var(--accent);display:flex;
+    align-items:center;justify-content:center;font-size:18px;font-weight:800}
+  .seg{display:flex;background:var(--card2);border-radius:12px;padding:4px;gap:4px}
+  .seg .o{flex:1;text-align:center;padding:8px;border-radius:9px;font-weight:600;font-size:14px;color:var(--muted)}
+  .seg .o.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .kdot{width:10px;height:10px;border-radius:50%;background:var(--green);display:inline-block}
+  label.fld{display:block;font-size:13px;color:var(--muted);margin:12px 0 5px;font-weight:600}
+  input.tf,textarea.tf{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;background:var(--card2)}
+  textarea.tf{min-height:70px;resize:vertical}
+  .chk{display:flex;align-items:center;gap:10px;padding:9px 0;font-size:15px;border-top:1px solid var(--line)}
+  .chk:first-child{border-top:0}
+  .chk .box{width:22px;height:22px;border-radius:7px;border:2px solid #cfced0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+  .chk.on .box{background:var(--green);border-color:var(--green)}
+  /* tab bar */
+  .tabbar{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:0 auto;padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+    display:flex;justify-content:space-around;background:rgba(248,247,248,.92);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line)}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:600;flex:1;padding:4px 0}
+  .tab .ic{width:38px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:999px;font-size:20px}
+  .tab.on{color:var(--accent)}
+  .tab.on .ic{background:#fbe3d7}
+  .hide{display:none!important}
+  .toast{position:fixed;left:50%;bottom:104px;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:11px 18px;border-radius:999px;font-size:14px;font-weight:600;z-index:80;box-shadow:0 8px 20px rgba(0,0,0,.25);opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1;bottom:112px}
+  .demoTag{position:fixed;top:8px;right:8px;background:rgba(28,28,30,.8);color:#fff;font-size:10px;font-weight:700;
+    padding:4px 9px;border-radius:999px;letter-spacing:.05em;z-index:90}
 </style>
 </head>
 <body>
-<header>
-  <h1>🍳 Mii Kitchens Hub</h1>
-  <div class="row">
-    <button id="prev">‹</button>
-    <button id="today">Today</button>
-    <button id="next">›</button>
-    <strong id="label" style="min-width:150px"></strong>
-    <span class="spacer"></span>
-    <button id="vcal" class="active">Calendar</button>
-    <button id="vlist">Agenda</button>
-    <a class="navlink" href="maintenance.html">🧾 Maintenance</a>
-    <span class="who" id="whoami"></span>
-    <button id="logout" title="Sign out">Sign out</button>
-  </div>
-  <div class="row" style="margin-top:8px">
-    <label style="font-size:12px;color:var(--muted)">Team:</label>
-    <span id="empFilters"></span>
-  </div>
-  <div class="row" style="margin-top:6px">
-    <label style="font-size:12px;color:var(--muted)">Stage:</label>
-    <span id="stageFilters"></span>
-  </div>
-  <div class="legend">
-    <span id="empLegend"></span>
-    <span style="color:var(--danger)">⚠ = scheduling clash</span>
-    <span><span class="chip meet" style="display:inline-block">▦</span> dashed = meeting</span>
-  </div>
-</header>
+<div class="demoTag">DEMO</div>
+<div id="app"></div>
 
-<main>
-  <div id="calview"></div>
-  <div id="listview" style="display:none"></div>
-  <p class="updated" id="stamp"></p>
-</main>
+<nav class="tabbar" id="tabbar"></nav>
+<div class="toast" id="toast"></div>
 
-<div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
-
-<script src="/shared/calendar.js"></script>
-<script src="app.js"></script>
 <script>
-const C = window.HubCalendar;
-let ME = null, EMPLOYEES = [], COLOR = {}, NAME = {}, JOBS = [], MEETINGS = [];
-let cur = new Date(); cur.setHours(0,0,0,0); cur.setDate(1);
-let view = "cal";
-let empFilter = new Set(), stageFilter = new Set();
+/* ---------------- sample data (demo only) ---------------- */
+const TEAM = {
+  drafters:[
+    {code:'EMILY', name:'Emily Grant', initials:'EG'},
+    {code:'JAKE',  name:'Jake Rowe',   initials:'JR'},
+    {code:'PRIYA', name:'Priya Shah',  initials:'PS'}
+  ],
+  installers:[
+    {code:'SAM', name:'Sam Turner', initials:'ST'},
+    {code:'LEE', name:'Lee Adams',  initials:'LA'}
+  ]
+};
+const JOBS = [
+  {ref:'QU3190', client:'Nuzzo (H)', builder:'mii Kitchens', jobno:'JOB-1070', drafter:'EMILY', installer:'SAM',
+   date:'Mon 22 Jun', time:'06:30–08:00', addr:'25 Llewellyn St, Balmain', files:17, done:6, total:10,
+   status:'prog', stage:2, rooms:['Kitchen','Butler\'s Pantry','Laundry']},
+  {ref:'QU3190', client:'Nuzzo', builder:'mii Kitchens', jobno:'JOB-1087', drafter:'EMILY', installer:'LEE',
+   date:'Wed 1 Jul', time:'07:00–08:30', addr:'25 Llewellyn St, Balmain NSW', files:22, done:4, total:10,
+   status:'prog', stage:3, rooms:['Kitchen','Vanity 1','Vanity 2']},
+  {ref:'ONIX', client:'Onix unit 1/2/3 kicks & panels', builder:'A&Z (via Ingenuity)', jobno:'JOB-1088', drafter:'JAKE', installer:'SAM',
+   date:'Fri 3 Jul', time:'All day', addr:'12 Onix Way, Rhodes', files:9, done:0, total:8,
+   status:'conf', stage:1, rooms:['Kitchen']},
+  {ref:'QU3382', client:'Devine Homes — Matthew W.', builder:'mii Kitchens', jobno:'JOB-1074', drafter:'PRIYA', installer:'LEE',
+   date:'Wed 22 Jul', time:'All day', addr:'8 Verona Rd, Kellyville', files:5, done:0, total:9,
+   status:'conf', stage:1, rooms:['Kitchen','Ensuite','Walk-in Pantry']},
+  {ref:'QU3496', client:'Eagle Homes — Lake Illawarra', builder:'Eagle Homes', jobno:'JOB-1089', drafter:null, installer:null,
+   date:'Thu 30 Jul', time:'09:00', addr:'3 Lakeview Pde, Warilla', files:2, done:0, total:8,
+   status:'new', stage:0, rooms:['Kitchen']},
+  {ref:'QU3437', client:'Bracken — 36 Eather', builder:'mii Kitchens', jobno:'JOB-1091', drafter:null, installer:null,
+   date:'Mon 3 Aug', time:'All day', addr:'36 Eather Ave, Kellyville', files:1, done:0, total:8,
+   status:'new', stage:0, rooms:['Kitchen','Laundry']}
+];
+const CLIENTS = [
+  {mono:'MK', name:'mii Kitchens', sub:'9 jobs · 5 active', color:'var(--pink)'},
+  {mono:'A&', name:'A&Z (via Ingenuity)', sub:'1 job · 1 active', color:'var(--blue)'},
+  {mono:'HK', name:'Harrington Kitchens', sub:'1 job', color:'var(--teal)'},
+  {mono:'EH', name:'Eagle Homes', sub:'1 job', color:'var(--gold)'}
+];
+const EVENTS = [
+  {d:'Mon, 29 Jun', t:'All day', title:'QU3437 Bracken — 36 Eather'},
+  {d:'Tue, 30 Jun', t:'08:00 am', title:'Site check-measure — Devine Homes'},
+  {d:'Wed, 1 Jul', t:'07:00 am', title:'QU3190 Nuzzo — 25 Llewellyn'},
+  {d:'Thu, 9 Jul', t:'All day', title:'QU3279 Verona Homes'},
+  {d:'Wed, 22 Jul', t:'All day', title:'QU3382 Devine Homes Matthew'},
+  {d:'Thu, 30 Jul', t:'09:00 am', title:'QU3496 Eagle Homes — Warilla'}
+];
+const DOCS = [
+  {t:'Plan set — Rev C.pdf', s:'2.4 MB · 1 Jul'},
+  {t:'Bench top template.pdf', s:'880 KB · 28 Jun'},
+  {t:'Appliance schedule.pdf', s:'320 KB · 26 Jun'},
+  {t:'Check-measure notes.pdf', s:'1.1 MB · 22 Jun'}
+];
+const STAGES = ['Check-measure','Drafting & design','Production','Install','Complete'];
 
-function colorForJob(j){
-  return COLOR[j.assigned_installer] || COLOR[j.assigned_drafter] || STAGE_COLOR[j.stage] || '#9aa0aa';
-}
-function shortName(j){ return (j.job_reference||'') + ' ' + (j.client_name||''); }
+/* ---------------- helpers ---------------- */
+const $=(s)=>document.querySelector(s);
+const app=$('#app');
+let uploaded={}; // jobIndex -> [dataURLs]
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function drafter(code){return TEAM.drafters.find(d=>d.code===code);}
+function installer(code){return TEAM.installers.find(d=>d.code===code);}
+function badge(st){const m={prog:['b-prog','In progress'],conf:['b-conf','Confirmed'],sched:['b-sched','Scheduled'],new:['b-new','New']};const[c,l]=m[st]||m.new;return `<span class="badge ${c}">${l}</span>`;}
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2200);}
 
-function visibleJobs(){
-  return JOBS.filter(j=>{
-    const stageOk = stageFilter.has(j.stage);
-    const assignees = [j.assigned_drafter, j.assigned_installer].filter(Boolean);
-    const empOk = assignees.length
-      ? assignees.some(c=>empFilter.has(c))
-      : empFilter.has('__unassigned__');
-    return stageOk && empOk;
-  });
+/* ---------------- views ---------------- */
+function viewJobs(){
+  const active=JOBS.filter(j=>j.status!=='new').length, sched=JOBS.length+3;
+  return `<div class="wrap">
+    <div class="head">
+      <div class="logo">MK</div>
+      <div class="t"><h1>Mii Kitchens</h1><div class="sub" style="margin:0">Your jobs at a glance</div></div>
+      <div class="icoBtn">🕐</div><div class="icoBtn accent">◈</div>
+    </div>
+    <div class="banner"><div><b>Today's run sheet</b><div class="s">1 job on site today</div></div><div class="spacer"></div><div style="font-size:22px">→</div></div>
+    <div class="stats">
+      <div class="stat"><div class="n">${active}</div><div class="l">Active</div></div>
+      <div class="stat"><div class="n">${sched}</div><div class="l">Scheduled</div></div>
+      <div class="stat dark"><div class="n">$0</div><div class="l">Value</div></div>
+    </div>
+    <button class="wide" onclick="toast('Checking inbox for new jobs…')">✉️ Check inbox for new jobs</button>
+    <div class="search">🔍 Search jobs, clients, addresses…</div>
+    <div class="filters">
+      <button class="pill on">Active</button><button class="pill">To confirm</button>
+      <button class="pill">Confirmed</button><button class="pill">Scheduled</button><button class="pill">New</button>
+    </div>
+    ${JOBS.map((j,i)=>jobCard(j,i)).join('')}
+    <div style="height:8px"></div>
+  </div>`;
 }
-function meetingsByDay(){
-  const m={};
-  MEETINGS.forEach(mt=>{
-    const day=(mt.starts_at||'').slice(0,10);
-    if(day) (m[day]=m[day]||[]).push(mt);
-  });
-  return m;
+function jobCard(j,i){
+  return `<div class="job" onclick="go('job',${i})">
+    <div class="row"><h3 style="flex:1">${esc(j.ref)} ${esc(j.client)}</h3>${badge(j.status)}</div>
+    <div class="meta">${esc(j.builder)} · ${esc(j.jobno)}${j.drafter?' · '+esc(drafter(j.drafter).name):''}</div>
+    <div class="line">📅 ${esc(j.date)} · ${esc(j.time)}</div>
+    <div class="line">📍 ${esc(j.addr)}
+      <span class="spacer"></span>
+      <span class="chipcount">📎 ${j.files}</span>
+      <span class="chipcount">☑ ${j.done}/${j.total}</span>
+    </div>
+  </div>`;
 }
-
-function render(){
-  document.getElementById("calview").style.display=view==="cal"?"":"none";
-  document.getElementById("listview").style.display=view==="list"?"":"none";
-  document.getElementById("vcal").classList.toggle("active",view==="cal");
-  document.getElementById("vlist").classList.toggle("active",view==="list");
-  document.getElementById("label").textContent=cur.toLocaleDateString("en-AU",{month:"long",year:"numeric"});
-  view==="cal"?renderCal():renderList();
-  document.getElementById("stamp").textContent="Showing "+visibleJobs().length+" jobs • "+MEETINGS.length+" meetings • signed in as "+ME.full_name+".";
-}
-
-function renderCal(){
-  const list=visibleJobs(), dm=C.dayMap(list), mm=meetingsByDay();
-  let start=new Date(cur); let wd=(start.getDay()+6)%7; start.setDate(start.getDate()-wd);
-  const today=C.iso(new Date());
-  let html='<div class="cal"><div class="dow"><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div><div>Jobs</div></div>';
-  for(let w=0;w<6;w++){
-    html+='<div class="week">';
-    let weekJobDays=0;
-    for(let d=0;d<7;d++){
-      const cd=new Date(start); cd.setDate(start.getDate()+w*7+d);
-      const k=C.iso(cd), inMonth=cd.getMonth()===cur.getMonth();
-      const items=dm[k]||[], meets=mm[k]||[];
-      if(items.length) weekJobDays++;
-      let cls="cell"+(inMonth?"":" out")+(k===today?" today":"")+(items.length>=2?" conflict":"");
-      html+='<div class="'+cls+'"><div class="daynum">'+cd.getDate()+'</div>';
-      items.slice(0,4).forEach(j=>{
-        html+='<div class="chip" style="background:'+colorForJob(j)+'" onclick="openJob(\''+esc(j.job_reference)+'\')" title="'+esc(j.client_name)+'">'+esc(shortName(j))+'</div>';
-      });
-      if(items.length>4) html+='<div class="daynum">+'+(items.length-4)+' more</div>';
-      meets.slice(0,2).forEach(mt=>{
-        html+='<div class="chip meet" title="'+esc(mt.title)+'">▦ '+esc(mt.title)+'</div>';
-      });
-      html+='</div>';
-    }
-    html+='<div class="wtot"><b>'+weekJobDays+'</b>days</div></div>';
+function viewCalendar(){
+  const dots={1:['','g'],2:[''],3:[''],6:[''],9:['g'],11:['g'],17:[''],20:[''],21:[''],22:['',''],23:['']};
+  let cells='';const first=2; // Wed=index2 for the 1st (Mon-first)
+  const prev=[29,30];
+  for(let i=0;i<first;i++)cells+=`<div class="d out">${prev[i]}</div>`;
+  for(let d=1;d<=31;d++){
+    const isT=d===1;const dd=dots[d];
+    cells+=`<div class="d${isT?' today':''}">${isT?'<span>'+d+'</span>':d}${dd?'<div class="dot">'+dd.map(x=>`<i class="${x}"></i>`).join('')+'</div>':''}</div>`;
   }
-  html+='</div>';
-  document.getElementById("calview").innerHTML=html;
+  for(let d=1;d<=2;d++)cells+=`<div class="d out">${d}</div>`;
+  return `<div class="wrap">
+    <div class="card" style="padding:14px 16px">
+      <div class="row" style="margin-bottom:6px"><span class="kdot" style="background:var(--blue)"></span><b>Your calendar — ${EVENTS.length} events</b><span class="spacer"></span><span class="muted" style="font-size:13px">this month</span></div>
+      ${EVENTS.map(e=>`<div class="evrow"><span class="dt">${esc(e.d)}</span><span class="tm">${esc(e.t)}</span><span>${esc(e.title)}</span></div>`).join('')}
+    </div>
+    <div class="calcard">
+      <div class="calhead"><span class="m">July</span><span class="y">2026</span><span class="spacer"></span><span style="color:#8a8a8e;font-size:20px">‹</span><span class="caltoday">Today</span><span style="color:#8a8a8e;font-size:20px">›</span></div>
+      <div class="cgrid"><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div><div class="dow">S</div>${cells}</div>
+    </div>
+    <div style="height:8px"></div>
+  </div>`;
+}
+function viewClients(){
+  return `<div class="wrap"><h1>Clients</h1><div class="sub">The builders &amp; companies you work for</div>
+    <div class="search">🔍 Search company or site contact…</div>
+    ${CLIENTS.map(c=>`<div class="clientcard" style="--accent:${c.color}"><div class="mono">${esc(c.mono)}</div><div><div style="font-weight:800;font-size:18px">${esc(c.name)}</div><div class="muted" style="font-size:14px">${esc(c.sub)}</div></div></div>`).join('')}
+    <div style="height:8px"></div></div>`;
+}
+function viewReports(){
+  const need=JOBS.filter(j=>j.done<j.total).length;
+  return `<div class="wrap"><h1>Job reports</h1><div class="sub">Tick off the work per room and email the client a completion report PDF.</div>
+    <div class="stats"><div class="stat"><div class="n" style="color:var(--accent)">${need}</div><div class="l" style="letter-spacing:0;text-transform:none;font-size:12px">Needs report</div></div>
+    <div class="stat"><div class="n" style="color:var(--blue)">1</div><div class="l" style="letter-spacing:0;text-transform:none;font-size:12px">Drafts</div></div>
+    <div class="stat"><div class="n" style="color:var(--green)">1</div><div class="l" style="letter-spacing:0;text-transform:none;font-size:12px">Sent</div></div></div>
+    <div class="filters"><button class="pill accent on">All</button><button class="pill">Needs report</button><button class="pill">Drafts</button><button class="pill">Sent</button></div>
+    ${JOBS.map((j,i)=>`<div class="job" onclick="go('installer',${i})">
+      <div class="row"><h3 style="flex:1;font-size:18px">${esc(j.ref)} ${esc(j.client)}</h3>${badge(j.status)}</div>
+      <div class="meta">${j.drafter?esc(drafter(j.drafter).name)+' · ':''}${esc(j.jobno)}</div>
+      <div class="row" style="margin-top:8px"><span class="badge b-new">No report yet</span><span class="spacer"></span><span class="muted">Tap to create →</span></div>
+    </div>`).join('')}
+    <div style="height:8px"></div></div>`;
+}
+function viewSettings(){
+  return `<div class="wrap"><h1 style="margin-top:6px">Settings</h1><div class="sub">Company, team &amp; integrations</div>
+    <div class="card"><div class="row"><div><b>Appearance</b><div class="muted" style="font-size:14px">Light, dark, or follow your device.</div></div></div>
+      <div class="seg" style="margin-top:12px"><div class="o">Light</div><div class="o">Dark</div><div class="o on">Auto</div></div></div>
+    <div class="card"><b>Google integration</b>
+      <div class="muted" style="font-size:14px;margin:6px 0 12px">Connect Google to sync jobs to Calendar, save PDFs to Drive and email clients from Gmail.</div>
+      <div class="row"><span class="kdot"></span><div style="font-size:15px">Connected as<br><b>office@miikitchens.com.au</b></div><span class="spacer"></span><button class="pill">Disconnect</button></div></div>
+    <div class="card"><b>Team</b><div class="muted" style="font-size:14px;margin:6px 0 10px">Draftspeople and installers.</div>
+      ${TEAM.drafters.map(d=>`<div class="assignrow"><div class="avatar">${d.initials}</div><div><div style="font-weight:700">${esc(d.name)}</div><div class="muted" style="font-size:13px">Draftsperson</div></div></div>`).join('')}
+      ${TEAM.installers.map(d=>`<div class="assignrow"><div class="avatar">${d.initials}</div><div><div style="font-weight:700">${esc(d.name)}</div><div class="muted" style="font-size:13px">Installer</div></div></div>`).join('')}
+    </div>
+    <div class="card"><b>Portals</b><div class="muted" style="font-size:14px;margin:6px 0 12px">Preview the client and installer experiences.</div>
+      <button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="go('client',0)">👤 Open client portal</button>
+      <button class="btn ghost" style="width:100%" onclick="go('installer',0)">🛠️ Open installer portal</button></div>
+    <div style="height:8px"></div></div>`;
 }
 
-function renderList(){
-  const list=visibleJobs().slice().sort((a,b)=>(a.start_date||'')<(b.start_date||'')?-1:(a.start_date||'')>(b.start_date||'')?1:0);
-  const today=C.iso(new Date());
-  const clash=C.clashRefs(list);
-  let html="", lastG="";
-  list.forEach(j=>{
-    const g=j.start_date?C.parseD(j.start_date).toLocaleDateString("en-AU",{month:"long",year:"numeric"}):"Unscheduled";
-    if(g!==lastG){html+='<div class="group">'+g+'</div>';lastG=g;}
-    const past=j.end_date && j.end_date<today;
-    html+='<div class="job" style="border-left-color:'+colorForJob(j)+(past?";opacity:.55":"")+'">'
-      +'<div class="meta">'
-      +'<h3>'+esc(shortName(j))+stageBadge(j)+statusBadge(j)+(j.is_tentative?'<span class="badge b-pending">tentative</span>':'')+(clash.has(j.job_reference)?'<span class="badge b-declined">⚠ clash</span>':'')+'</h3>'
-      +'<div class="sub">📅 '+dateLabel(j)+'</div>'
-      +'<div class="sub">👤 '+esc(assigneeLabel(j))+'</div>'
-      +'<div class="sub">📍 '+esc(j.site_address||'')+'</div>'
-      +(j.pdf_links&&j.pdf_links.length?'<div class="sub pdf">📄 '+j.pdf_links.map((u,i)=>'<a href="'+esc(u)+'" target="_blank" rel="noopener">file '+(i+1)+'</a>').join(' · ')+'</div>':'')
-      +'</div>'
-      +'<div class="acts">'
-      +'<button onclick="openJob(\''+esc(j.job_reference)+'\')">Details</button>'
-      +'<button onclick="addToGCal(\''+esc(j.job_reference)+'\')" title="Add to Google Calendar">📅 Calendar</button>'
-      +'</div></div>';
-  });
-  document.getElementById("listview").innerHTML=html||'<p style="color:var(--muted)">No jobs match the current filters.</p>';
+/* ---- job detail: the pipeline ---- */
+function viewJob(i){
+  const j=JOBS[i];const d=drafter(j.drafter),ins=installer(j.installer);
+  const ph=uploaded[i]||[];
+  const sn=(n,label,active)=>`<div class="snum ${j.stage>n?'done':(j.stage===n?'active':'')}">${j.stage>n?'✓':n+1}</div>`;
+  return `<div class="wrap">
+    <div class="back" onclick="go('jobs')">‹ Jobs</div>
+    <div class="row"><h2 style="flex:1">${esc(j.ref)} ${esc(j.client)}</h2>${badge(j.status)}</div>
+    <div class="muted" style="margin-bottom:2px">${esc(j.builder)} · ${esc(j.jobno)}</div>
+    <div class="line muted" style="font-size:14px">📍 ${esc(j.addr)} &nbsp; 📅 ${esc(j.date)} · ${esc(j.time)}</div>
+
+    <div class="stage"><div class="sh">${sn(0)}<div style="flex:1"><b>Site check-measure</b><div class="muted" style="font-size:13px">Measurements &amp; site photos</div></div></div>
+      <div class="body">
+        <div class="thumbs">
+          ${ph.map((u,k)=>`<div class="thumb" style="background-image:url('${u}')"></div>`).join('')}
+          <label class="addph"><input type="file" accept="image/*" multiple style="display:none" onchange="addPhotos(${i},this)"><div style="font-size:22px">＋</div>Add<br>photos</label>
+        </div>
+        <div class="muted" style="font-size:13px">${ph.length? ph.length+' photo(s) from site':'Tap ＋ to add site photos (kitchen, walls, services).'}</div>
+      </div></div>
+
+    <div class="stage"><div class="sh">${sn(1)}<div style="flex:1"><b>Drafting &amp; design</b><div class="muted" style="font-size:13px">Assigned draftsperson draws the kitchen</div></div></div>
+      <div class="body">
+        ${d?`<div class="assignrow"><div class="avatar">${d.initials}</div><div><div style="font-weight:700">${esc(d.name)}</div><div class="muted" style="font-size:13px">Drafting in progress · Rev C</div></div></div>`
+            :`<div class="muted" style="font-size:14px;padding:6px 0">Not assigned yet.</div>`}
+        <button class="btn ghost" style="width:100%;margin-top:6px" onclick="toast('Reassign draftsperson (demo)')">${d?'Reassign draftsperson':'Assign draftsperson'}</button>
+      </div></div>
+
+    <div class="stage"><div class="sh">${sn(3)}<div style="flex:1"><b>Installation</b><div class="muted" style="font-size:13px">Assigned installer fits the kitchen on site</div></div></div>
+      <div class="body">
+        ${ins?`<div class="assignrow"><div class="avatar">${ins.initials}</div><div><div style="font-weight:700">${esc(ins.name)}</div><div class="muted" style="font-size:13px">Booked · ${esc(j.date)}</div></div></div>`
+            :`<div class="muted" style="font-size:14px;padding:6px 0">Not assigned yet.</div>`}
+        <button class="btn ghost" style="width:100%;margin-top:6px" onclick="toast('Assign installer (demo)')">${ins?'Reassign installer':'Assign installer'}</button>
+      </div></div>
+
+    <div class="stage"><div class="sh"><div class="snum active">📄</div><div style="flex:1"><b>Documents &amp; PDFs</b><div class="muted" style="font-size:13px">Everything for this job in one place</div></div></div>
+      <div class="body">
+        ${DOCS.map(dc=>`<div class="doc"><div class="docico">PDF</div><div style="flex:1"><div style="font-weight:600">${esc(dc.t)}</div><div class="muted" style="font-size:13px">${esc(dc.s)}</div></div><span class="muted">⤓</span></div>`).join('')}
+      </div></div>
+
+    <div class="row" style="gap:10px;margin:6px 0 4px">
+      <button class="btn ghost" style="flex:1" onclick="go('client',${i})">👤 Client portal</button>
+      <button class="btn ghost" style="flex:1" onclick="go('installer',${i})">🛠️ Installer portal</button>
+    </div>
+    <div style="height:8px"></div>
+  </div>`;
+}
+function addPhotos(i,input){
+  uploaded[i]=uploaded[i]||[];
+  [...input.files].forEach(f=>{const r=new FileReader();r.onload=e=>{uploaded[i].push(e.target.result);render();};r.readAsDataURL(f);});
+  toast(input.files.length+' photo(s) added');
 }
 
-function dateLabel(j){
-  if(!j.start_date) return 'Unscheduled';
-  const f=dt=>dt.toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short"});
-  return f(C.parseD(j.start_date))+(j.end_date&&j.end_date!==j.start_date?(' → '+f(C.parseD(j.end_date))):'')+' • '+(j.days_required||1)+' day(s)';
-}
-function assigneeLabel(j){
-  const parts=[];
-  if(j.drafter_name) parts.push('Drafter: '+j.drafter_name);
-  if(j.installer_name) parts.push('Installer: '+j.installer_name);
-  return parts.length?parts.join(' · '):'Unassigned';
-}
-function stageBadge(j){ return '<span class="badge b-stage">'+esc(STAGE_LABEL[j.stage]||j.stage)+'</span>'; }
-function statusBadge(j){
-  const s=j.status||"Pending";
-  const cls={Pending:"b-pending",Approved:"b-approved",Scheduled:"b-scheduled",Declined:"b-declined"}[s]||"b-pending";
-  return '<span class="badge '+cls+'">'+esc(s)+'</span>';
-}
-
-function findJob(ref){ return JOBS.find(j=>j.job_reference===ref); }
-function addToGCal(ref){ const j=findJob(ref); if(j) window.open(C.gcalUrl(j),"_blank","noopener"); }
-
-function openJob(ref){
-  const j=findJob(ref); if(!j) return;
-  const m=document.getElementById("modal");
-  let html='<h2>'+esc(shortName(j))+stageBadge(j)+statusBadge(j)+'</h2>'
-    +'<div class="kv"><b>Dates</b><span>'+esc(dateLabel(j))+'</span></div>'
-    +'<div class="kv"><b>Assigned</b><span>'+esc(assigneeLabel(j))+'</span></div>'
-    +'<div class="kv"><b>Address</b><span><a href="https://maps.google.com/?q='+encodeURIComponent(j.site_address||'')+'" target="_blank" rel="noopener">'+esc(j.site_address||'')+'</a></span></div>'
-    +(j.contact_name?'<div class="kv"><b>Contact</b><span>'+esc(j.contact_name)+'</span></div>':'')
-    +(j.contact_phone?'<div class="kv"><b>Phone</b><span>'+esc(j.contact_phone)+'</span></div>':'')
-    +(j.contact_email?'<div class="kv"><b>Email</b><span>'+esc(j.contact_email)+'</span></div>':'')
-    +(j.client_meeting?'<div class="kv"><b>Client mtg</b><span>'+esc(j.client_meeting)+'</span></div>':'')
-    +'<div class="kv"><b>Summary</b><span>'+esc(j.job_summary||'')+'</span></div>'
-    +(j.pdf_links&&j.pdf_links.length?'<div class="kv"><b>Files</b><span>'+j.pdf_links.map((u,i)=>'<a href="'+esc(u)+'" target="_blank" rel="noopener">file '+(i+1)+'</a>').join(' · ')+'</span></div>':'')
-    +(j.notes?'<div class="note">'+esc(j.notes)+'</div>':'');
-  if(ME.role==='admin') html+=assignBoxHTML(j);
-  html+='<div class="row" style="margin-top:14px">'
-    +'<button onclick="addToGCal(\''+esc(j.job_reference)+'\')">📅 Add to Google Calendar</button>'
-    +'<span class="spacer"></span><button onclick="closeM()">Close</button></div>';
-  m.innerHTML=html;
-  document.getElementById("scrim").classList.add("open");
+/* ---- client portal ---- */
+function viewClient(i){
+  const j=JOBS[i];
+  return `<div class="wrap">
+    <div class="back" onclick="go('job',${i})">‹ Back</div>
+    <div class="head"><div class="logo">MK</div><div class="t"><h2>Your kitchen</h2><div class="muted" style="font-size:14px">${esc(j.client)} · ${esc(j.addr)}</div></div></div>
+    <div class="banner"><div><b>Stage ${Math.min(j.stage+1,5)} of 5</b><div class="s">${esc(STAGES[Math.min(j.stage,4)])}</div></div></div>
+    <div class="card"><b>Progress</b>
+      ${STAGES.map((s,k)=>`<div class="chk ${k<=j.stage?'on':''}"><span class="box">${k<=j.stage?'✓':''}</span>${esc(s)}</div>`).join('')}
+    </div>
+    <div class="card"><b>Your documents</b><div class="muted" style="font-size:14px;margin:4px 0 6px">Plans and schedules shared with you.</div>
+      ${DOCS.slice(0,3).map(dc=>`<div class="doc"><div class="docico">PDF</div><div style="flex:1"><div style="font-weight:600">${esc(dc.t)}</div><div class="muted" style="font-size:13px">${esc(dc.s)}</div></div><span class="muted">⤓</span></div>`).join('')}
+    </div>
+    <div class="card"><b>Questions?</b><div class="muted" style="font-size:14px;margin:4px 0 10px">Message the Mii Kitchens team about your install.</div>
+      <button class="btn primary" onclick="toast('Message sent (demo)')">Message the team</button></div>
+    <div style="height:8px"></div></div>`;
 }
 
-function assignBoxHTML(j){
-  const opt=(val,cur,label)=>'<option value="'+esc(val)+'"'+(val===cur?' selected':'')+'>'+esc(label)+'</option>';
-  const drafters=EMPLOYEES.filter(e=>e.role==='drafter');
-  const installers=EMPLOYEES.filter(e=>e.role==='installer');
-  let dSel='<select id="aDrafter">'+opt('','',j.assigned_drafter?'—':'— unassigned —');
-  drafters.forEach(e=>dSel+=opt(e.employee_code,j.assigned_drafter,e.full_name)); dSel+='</select>';
-  let iSel='<select id="aInstaller">'+opt('','',j.assigned_installer?'—':'— unassigned —');
-  installers.forEach(e=>iSel+=opt(e.employee_code,j.assigned_installer,e.full_name)); iSel+='</select>';
-  let sSel='<select id="aStage">';
-  STAGE_ORDER.forEach(s=>sSel+=opt(s,j.stage,STAGE_LABEL[s])); sSel+='</select>';
-  let stSel='<select id="aStatus">';
-  ['Pending','Approved','Scheduled','Declined'].forEach(s=>stSel+=opt(s,j.status,s)); stSel+='</select>';
-  return '<div class="assignbox"><h4>Assign &amp; schedule (admin)</h4>'
-    +'<div>Drafter '+dSel+' Installer '+iSel+'</div>'
-    +'<div>Stage '+sSel+' Status '+stSel+'</div>'
-    +'<button class="primary" onclick="saveAssign(\''+esc(j.job_reference)+'\')">Save</button></div>';
+/* ---- installer portal ---- */
+function viewInstaller(i){
+  const j=JOBS[i]||JOBS[0];const ins=installer(j.installer)||TEAM.installers[0];
+  const ph=uploaded['ins'+i]||[];
+  return `<div class="wrap">
+    <div class="back" onclick="go('job',${i})">‹ Back</div>
+    <div class="head"><div class="logo">🛠️</div><div class="t"><h2>Installer portal</h2><div class="muted" style="font-size:14px">${esc(ins.name)}</div></div></div>
+    <div class="card"><b>Upcoming jobs</b>
+      ${JOBS.filter(x=>x.installer===ins.code).map(x=>`<div class="doc"><div class="docico" style="background:#eef4fc;color:var(--blue)">📅</div><div style="flex:1"><div style="font-weight:700">${esc(x.ref)} ${esc(x.client)}</div><div class="muted" style="font-size:13px">${esc(x.date)} · ${esc(x.time)} · ${esc(x.addr)}</div></div></div>`).join('')||'<div class="muted" style="padding:6px 0">No jobs booked.</div>'}
+    </div>
+    <div class="card"><b>Maintenance / completion report</b><div class="muted" style="font-size:14px;margin:4px 0 8px">${esc(j.ref)} ${esc(j.client)} — tick off each room.</div>
+      ${(j.rooms||['Kitchen']).map(r=>`<div class="chk" onclick="this.classList.toggle('on')"><span class="box">✓</span>${esc(r)} — installed &amp; checked</div>`).join('')}
+      <label class="fld">Defects / notes</label><textarea class="tf" placeholder="Any snags or follow-up…"></textarea>
+    </div>
+    <div class="card"><b>Site photos</b>
+      <div class="thumbs">${ph.map(u=>`<div class="thumb" style="background-image:url('${u}')"></div>`).join('')}
+        <label class="addph"><input type="file" accept="image/*" multiple style="display:none" onchange="addInsPhotos(${i},this)"><div style="font-size:22px">＋</div>Add</label></div>
+    </div>
+    <button class="btn primary" onclick="toast('Report emailed to office &amp; client (demo)')">Send completion report PDF</button>
+    <div style="height:8px"></div></div>`;
 }
+function addInsPhotos(i,input){const key='ins'+i;uploaded[key]=uploaded[key]||[];[...input.files].forEach(f=>{const r=new FileReader();r.onload=e=>{uploaded[key].push(e.target.result);render();};r.readAsDataURL(f);});toast(input.files.length+' photo(s) added');}
 
-async function saveAssign(ref){
-  const body={
-    job_reference:ref,
-    assigned_drafter:document.getElementById('aDrafter').value,
-    assigned_installer:document.getElementById('aInstaller').value,
-    stage:document.getElementById('aStage').value,
-    status:document.getElementById('aStatus').value
-  };
-  try{
-    const r=await Api.post('/assign',body);
-    const i=JOBS.findIndex(x=>x.job_reference===ref);
-    if(i>=0) JOBS[i]=r.job;
-    closeM(); render();
-  }catch(e){ alert('Could not save: '+(e.data&&e.data.error||e.message)); }
+/* ---------------- router ---------------- */
+let state={tab:'jobs',arg:null};
+const TABS=[['jobs','📋','Jobs'],['calendar','🗓️','Calendar'],['clients','👥','Clients'],['reports','📄','Reports'],['settings','☀️','Settings']];
+function go(tab,arg){state={tab,arg:arg??null};window.scrollTo(0,0);render();}
+function render(){
+  const t=state.tab;
+  if(t==='job')app.innerHTML=viewJob(state.arg);
+  else if(t==='client')app.innerHTML=viewClient(state.arg);
+  else if(t==='installer')app.innerHTML=viewInstaller(state.arg);
+  else if(t==='calendar')app.innerHTML=viewCalendar();
+  else if(t==='clients')app.innerHTML=viewClients();
+  else if(t==='reports')app.innerHTML=viewReports();
+  else if(t==='settings')app.innerHTML=viewSettings();
+  else app.innerHTML=viewJobs();
+  const activeTab=['job'].includes(t)?'jobs':(['client'].includes(t)?'clients':(['installer'].includes(t)?'reports':t));
+  $('#tabbar').innerHTML=TABS.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
 }
-
-function closeM(){ document.getElementById("scrim").classList.remove("open"); }
-
-function buildFilters(){
-  empFilter=new Set(EMPLOYEES.map(e=>e.employee_code)); empFilter.add('__unassigned__');
-  stageFilter=new Set(STAGE_ORDER);
-  const ef=document.getElementById('empFilters'); ef.innerHTML='';
-  const mkBtn=(code,label,color)=>{
-    const b=document.createElement('button'); b.className='flt active';
-    b.innerHTML=(color?'<span class="dot" style="background:'+color+'"></span>':'')+esc(label);
-    b.onclick=()=>{ empFilter.has(code)?empFilter.delete(code):empFilter.add(code); b.classList.toggle('active'); render(); };
-    return b;
-  };
-  EMPLOYEES.forEach(e=>ef.appendChild(mkBtn(e.employee_code,e.full_name,e.color)));
-  ef.appendChild(mkBtn('__unassigned__','Unassigned','#cbd5e1'));
-  const sf=document.getElementById('stageFilters'); sf.innerHTML='';
-  STAGE_ORDER.forEach(s=>{
-    const b=document.createElement('button'); b.className='flt active'; b.textContent=STAGE_LABEL[s];
-    b.onclick=()=>{ stageFilter.has(s)?stageFilter.delete(s):stageFilter.add(s); b.classList.toggle('active'); render(); };
-    sf.appendChild(b);
-  });
-  const leg=document.getElementById('empLegend');
-  leg.innerHTML=EMPLOYEES.map(e=>'<span style="margin-right:10px"><i class="dot" style="background:'+e.color+'"></i>'+esc(e.full_name)+'</span>').join('');
-}
-
-// events
-document.getElementById("prev").onclick=()=>{cur.setMonth(cur.getMonth()-1);render();};
-document.getElementById("next").onclick=()=>{cur.setMonth(cur.getMonth()+1);render();};
-document.getElementById("today").onclick=()=>{cur=new Date();cur.setDate(1);cur.setHours(0,0,0,0);render();};
-document.getElementById("vcal").onclick=()=>{view="cal";render();};
-document.getElementById("vlist").onclick=()=>{view="list";render();};
-document.getElementById("logout").onclick=logout;
-document.getElementById("scrim").onclick=e=>{if(e.target.id==="scrim")closeM();};
-
-(async function boot(){
-  let me; try{ me=await Api.get('/auth/me'); }catch(e){ return; } // redirected to login
-  ME=me.user;
-  document.getElementById('whoami').textContent=ME.full_name+' ('+ME.role+')';
-  const emp=await Api.get('/auth/employees'); EMPLOYEES=emp.employees;
-  EMPLOYEES.forEach(e=>{ COLOR[e.employee_code]=e.color; NAME[e.employee_code]=e.full_name; });
-  const [jb,mt]=await Promise.all([Api.get('/jobs'),Api.get('/meetings')]);
-  JOBS=jb.jobs; MEETINGS=mt.meetings;
-  buildFilters();
-  const up=JOBS.map(j=>j.start_date).filter(Boolean).filter(d=>d>=C.iso(new Date())).sort()[0];
-  if(up){const d=C.parseD(up);cur=new Date(d.getFullYear(),d.getMonth(),1);}
-  render();
-})();
+render();
 </script>
 </body>
 </html>
