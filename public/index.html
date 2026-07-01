@@ -171,6 +171,12 @@
   .mcal .d.busy{color:var(--amber)}
   .mcal .d.busy::after{content:"";position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:var(--amber)}
   .mcal .d.sel{background:var(--accent);color:#fff;font-weight:800}
+  .plansheet{background:#fff;border:1px solid #d8d7d9;border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+  .plantitle{font-weight:800;letter-spacing:.08em;font-size:12px;color:var(--muted);border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:12px}
+  .plandiag{border:1px solid var(--line);border-radius:8px;padding:8px;margin-bottom:12px}
+  .planspecs{font-size:13px;line-height:1.8;margin-bottom:12px}
+  .titleblock{border:1px solid var(--ink);border-radius:6px;padding:10px;font-size:13px}
+  .sw{width:34px;height:34px;border-radius:8px;border:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -510,8 +516,52 @@ function addPhotos(i,input){
 }
 
 /* ---- client portal ---- */
+const PRICE_BY_REF={QU3190:28400, ONIX:9200, QU3382:34600, QU3496:22750, QU3437:19800};
+function money(n){return '$'+n.toLocaleString('en-AU');}
+function jobPrice(i){
+  const j=JOBS[i], total=PRICE_BY_REF[j.ref]||24000, df=dfGet(i);
+  const dep=Math.round(total*0.2), prog=Math.round(total*0.4), bal=total-dep-prog;
+  const approved=df.status==='approved'||j.stage>=2;
+  return {total, milestones:[
+    {label:'Deposit — on order', amt:dep, when:'Paid 20 Jun', status:'paid'},
+    {label:'On drawings approval', amt:prog, when:approved?'Paid 1 Jul':'Due on sign-off', status:approved?'paid':'due'},
+    {label:'Balance — on completion', amt:bal, when:'On completion', status:'upcoming'}
+  ]};
+}
+function clientSelections(i){
+  const f=cmGet(i).finishes, k=cmGet(i).areas[0];
+  return [
+    {label:'Door style & colour', val:f.door, sw:'#efe9dd'},
+    {label:'Carcass', val:f.carcass, sw:'#ffffff'},
+    {label:'Benchtop', val:k.benchtop.mat, sw:'#e7e1d7'},
+    {label:'Splashback', val:k.splash.mat, sw:'#e3e7ea'},
+    {label:'Handles / hardware', val:f.handles, sw:'#b08d57'},
+    {label:'Kickboard', val:f.kick, sw:'#1c1c1e'}
+  ];
+}
+function openPlan(i,rev){window._planRev=rev;go('plan',i);}
+function viewPlan(i){
+  const j=JOBS[i], rev=window._planRev||'C', k=cmGet(i).areas[0], f=cmGet(i).finishes;
+  const spec=(a,b)=>`<div><span class="muted">${esc(a)}: </span>${esc(b)}</div>`;
+  return `<div class="wrap">
+    <div class="back" onclick="go('client',${i})">‹ Your plans</div>
+    <div class="plansheet">
+      <div class="plantitle">KITCHEN — PLAN · REV ${esc(rev)}</div>
+      <div class="plandiag">${areaDiagram(k)}</div>
+      <div class="planspecs">${spec('Benchtop',k.benchtop.mat)}${spec('Doors',f.door)}${spec('Handles',f.handles)}${spec('Kickboard',f.kick)}</div>
+      <div class="titleblock">
+        <div><b>${esc(j.ref)}</b> · ${esc(j.client)}</div>
+        <div class="muted">${esc(j.addr)}</div>
+        <div class="row" style="margin-top:4px"><span>Rev ${esc(rev)}</span><span class="spacer"></span><span>Scale NTS</span></div>
+        <div class="muted">Mii Kitchens · Drawn ${esc(TEAM.drafters[0].name)}</div>
+      </div>
+    </div>
+    <button class="btn primary" style="margin-top:12px" onclick="toast('Downloading Rev ${esc(rev)} PDF (demo)')">⤓ Download PDF</button>
+    <div style="height:8px"></div>
+  </div>`;
+}
 function viewClient(i){
-  const j=JOBS[i], df=dfGet(i);
+  const j=JOBS[i], df=dfGet(i), p=jobPrice(i), sel=clientSelections(i);
   return `<div class="wrap">
     <div class="back" onclick="go('job',${i})">‹ Back</div>
     <div class="head"><div class="logo">MK</div><div class="t"><h2>Your kitchen</h2><div class="muted" style="font-size:14px">${esc(j.client)} · ${esc(j.addr)}</div></div></div>
@@ -519,18 +569,25 @@ function viewClient(i){
     <div class="card"><b>Progress</b>
       ${STAGES.map((s,k)=>`<div class="chk ${k<=j.stage?'on':''}"><span class="box">${k<=j.stage?'✓':''}</span>${esc(s)}</div>`).join('')}
     </div>
-    ${df.status==='review'?`<div class="card"><b>Approve your design</b><div class="muted" style="font-size:14px;margin:4px 0 8px">Rev C is ready for your sign-off. Review the plans and approve to go to production.</div>
-      <div class="doc"><div class="docico">PDF</div><div style="flex:1;font-weight:600">Plan set — Rev C.pdf</div><span class="muted">⤓</span></div>
-      <button class="btn primary" style="margin-top:10px" onclick="clientApprove(${i})">✓ Approve design</button>
+    ${df.status==='review'?`<div class="card"><b>Approve your design</b><div class="muted" style="font-size:14px;margin:4px 0 8px">Rev C is ready for your sign-off. Open it below, then approve to go to production.</div>
+      <button class="btn primary" onclick="openPlan(${i},'C')">Open Rev C plan</button>
+      <button class="btn ghost" style="width:100%;margin-top:8px" onclick="clientApprove(${i})">✓ Approve design</button>
       <button class="btn ghost" style="width:100%;margin-top:8px" onclick="toast('Change request sent to Mii Kitchens (demo)')">Request a change</button></div>`
       :df.status==='approved'?`<div class="card"><div class="row"><span class="kdot"></span><b>Design approved — thank you!</b></div><div class="muted" style="font-size:14px;margin-top:4px">Your kitchen is now in production.</div></div>`:''}
+    <div class="card"><b>Your plans</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Tap a revision to view the PDF.</div>
+      ${df.revisions.slice().reverse().map(r=>`<div class="doc" onclick="openPlan(${i},'${r.rev}')"><div class="docico">PDF</div><div style="flex:1"><div style="font-weight:700">Plan set — Rev ${esc(r.rev)}</div><div class="muted" style="font-size:13px">${esc(r.date)} · ${r.state==='current'?'Latest':(r.state==='approved'?'Approved':'Superseded')}</div></div><span class="muted">›</span></div>`).join('')}
+    </div>
+    <div class="card"><b>Your selections</b><div class="muted" style="font-size:13px;margin:2px 0 4px">Colours &amp; hardware for your kitchen.</div>
+      ${sel.map(s=>`<div class="doc"><div class="sw" style="background:${s.sw}"></div><div style="flex:1"><div style="font-weight:700">${esc(s.label)}</div><div class="muted" style="font-size:13px">${esc(s.val)}</div></div></div>`).join('')}
+    </div>
+    <div class="card"><b>Your investment</b>
+      <div class="row" style="margin:8px 0 6px"><div style="font-size:28px;font-weight:800">${money(p.total)}</div><span class="spacer"></span><span class="muted" style="font-size:13px">incl. GST</span></div>
+      ${p.milestones.map(m=>`<div class="doc"><div style="flex:1"><div style="font-weight:700">${esc(m.label)}</div><div class="muted" style="font-size:13px">${esc(m.when)}</div></div><div style="text-align:right"><div style="font-weight:800">${money(m.amt)}</div><span class="badge ${m.status==='paid'?'b-conf':(m.status==='due'?'b-prog':'b-new')}" style="font-size:11px">${m.status==='paid'?'Paid':(m.status==='due'?'Due':'Upcoming')}</span></div></div>`).join('')}
+      <button class="btn primary" style="margin-top:10px" onclick="toast('Opening secure payment (demo)')">Pay next instalment</button>
+    </div>
     <div class="card"><b>Your install</b>
       ${specRow('Scheduled', j.installer?j.date:'To be confirmed')}
       ${specRow('On site', j.days>1?j.days+' days':'1 day')}
-      ${specRow('Address', j.addr)}
-    </div>
-    <div class="card"><b>Your documents</b><div class="muted" style="font-size:14px;margin:4px 0 6px">Plans and schedules shared with you.</div>
-      ${DOCS.slice(0,3).map(dc=>`<div class="doc"><div class="docico">PDF</div><div style="flex:1"><div style="font-weight:600">${esc(dc.t)}</div><div class="muted" style="font-size:13px">${esc(dc.s)}</div></div><span class="muted">⤓</span></div>`).join('')}
     </div>
     <div class="card"><b>Questions?</b><div class="muted" style="font-size:14px;margin:4px 0 10px">Message the Mii Kitchens team about your install.</div>
       <button class="btn primary" onclick="toast('Message sent (demo)')">Message the team</button></div>
@@ -825,6 +882,7 @@ function render(){
   else if(t==='drafting')app.innerHTML=viewDrafting(state.arg);
   else if(t==='docs')app.innerHTML=viewDocs(state.arg);
   else if(t==='client')app.innerHTML=viewClient(state.arg);
+  else if(t==='plan')app.innerHTML=viewPlan(state.arg);
   else if(t==='installer')app.innerHTML=viewInstaller(state.arg);
   else if(t==='calendar')app.innerHTML=viewCalendar();
   else if(t==='clients')app.innerHTML=viewClients();
@@ -832,7 +890,7 @@ function render(){
   else if(t==='settings')app.innerHTML=viewSettings();
   else app.innerHTML=(currentRole==='office')?viewJobs():(isDrafter()?viewDrafterHome(currentRole):viewInstallerHome(currentRole));
   let activeTab;
-  if(currentRole==='office') activeTab=['job','checkmeasure','installsched','drafting','docs'].includes(t)?'jobs':(t==='client'?'clients':(t==='installer'?'reports':t));
+  if(currentRole==='office') activeTab=['job','checkmeasure','installsched','drafting','docs'].includes(t)?'jobs':((t==='client'||t==='plan')?'clients':(t==='installer'?'reports':t));
   else activeTab=(t==='calendar')?'calendar':(t==='settings')?'settings':'jobs';
   const tabs=currentRole==='office'?OFFICE_TABS:STAFF_TABS;
   $('#tabbar').innerHTML=tabs.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
