@@ -149,6 +149,7 @@
   .svc{display:flex;align-items:center;gap:8px;font-size:14px;padding:8px 0;border-top:1px solid var(--line)}
   .svc .pos{color:var(--muted);margin-left:auto;text-align:right;max-width:52%}
   .addrow{color:var(--accent);font-weight:700;font-size:14px;padding:10px 0 2px}
+  .diag{margin:12px 0 4px;background:var(--card2);border-radius:14px;padding:12px 8px}
 </style>
 </head>
 <body>
@@ -467,9 +468,11 @@ function svcTag(t){const m={Power:['#eef4fc','#2f6fd0'],Plumb:['#e8f8f2','#1f9d8
 function areaCard(i,a,k){
   return `<div class="card" style="margin:10px 0"><div class="row"><b style="flex:1;font-size:18px">${esc(a.name)}</b><span class="muted" style="font-size:13px">Area ${k+1}</span></div>
     <div class="cmsub">Wall runs &amp; heights</div>
-    ${a.walls.map(w=>specRow('Wall '+w.id,w.len+' mm')).join('')}
+    ${a.walls.map(w=>`<div class="specrow"><span class="k" style="flex:1">Wall ${w.id}</span><input class="v" style="width:auto;max-width:92px" value="${esc(w.len)}" inputmode="numeric" oninput="cmWall(${i},${k},'${w.id}',this.value)"><span class="muted" style="font-size:13px;margin-left:6px">mm</span></div>`).join('')}
     ${specRow('Ceiling height',a.ceiling+' mm')}
     ${specRow('Floor level',a.floorLevel)}
+    <div class="diag" id="cmdiag-${i}-${k}">${areaDiagram(a)}</div>
+    <div class="muted" style="font-size:12px;text-align:center;margin-bottom:2px">Top-down layout · updates as you enter wall sizes · not to scale</div>
     <div class="cmsub">Services</div>
     ${a.services.map(s=>`<div class="svc">${svcTag(s.type)}<span>${esc(s.label)}</span><span class="pos">${esc(s.pos)}</span></div>`).join('')}
     <div class="addrow" onclick="toast('Add service point (demo)')">＋ add service point</div>
@@ -494,6 +497,34 @@ function areaCard(i,a,k){
 function cmAddArea(i){const c=cmGet(i);const blank={name:'New area',walls:[{id:'A',len:''}],ceiling:'',floorLevel:'',services:[],appliances:[],benchtop:{mat:'',edge:'',sink:'',taps:''},splash:{h:'',mat:''},photos:[],notes:''};c.areas.push(blank);document.getElementById('cmAreas').insertAdjacentHTML('beforeend',areaCard(i,blank,c.areas.length-1));toast('Area added');}
 function cmAddPhoto(i,k,input){const c=cmGet(i);const cont=document.getElementById('cmph-'+i+'-'+k);[...input.files].forEach(f=>{const r=new FileReader();r.onload=e=>{c.areas[k].photos.push(e.target.result);const d=document.createElement('div');d.className='thumb';d.style.backgroundImage="url('"+e.target.result+"')";cont.insertBefore(d,cont.lastElementChild);};r.readAsDataURL(f);});toast(input.files.length+' photo(s) added');}
 function cmComplete(i){toast('Check-measure complete — PDF generated, sent to drafting');setTimeout(()=>go('job',i),1000);}
+// Build a simple top-down plan from the wall runs (turns 90° at each corner).
+function areaDiagram(a){
+  const walls=(a.walls||[]).map(w=>({id:w.id,len:parseInt(String(w.len).replace(/[^0-9]/g,''))||1000}));
+  if(!walls.length) return '';
+  const dirs=[[1,0],[0,-1],[-1,0],[0,1]]; // right, up, left, down
+  let x=0,y=0; const pts=[{x,y}], segs=[];
+  walls.forEach((w,idx)=>{const d=dirs[idx%4];const nx=x+d[0]*w.len,ny=y+d[1]*w.len;segs.push({a:{x,y},b:{x:nx,y:ny},len:w.len,id:w.id,dir:d});x=nx;y=ny;pts.push({x,y});});
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const W=(maxX-minX)||1000,H=(maxY-minY)||1000,pad=40,vw=320,vh=200;
+  const s=Math.min((vw-2*pad)/W,(vh-2*pad)/H);
+  const ox=(vw-W*s)/2-minX*s, oy=(vh-H*s)/2-minY*s;
+  const tx=p=>ox+p.x*s, ty=p=>oy+p.y*s;
+  const cx=pts.reduce((n,p)=>n+tx(p),0)/pts.length, cy=pts.reduce((n,p)=>n+ty(p),0)/pts.length;
+  let svg=`<svg viewBox="0 0 ${vw} ${vh}" width="100%" style="display:block">`;
+  if(pts.length>2) svg+=`<polygon points="${pts.map(p=>tx(p).toFixed(1)+','+ty(p).toFixed(1)).join(' ')}" fill="#fbeee7"/>`;
+  segs.forEach(seg=>{
+    svg+=`<line x1="${tx(seg.a).toFixed(1)}" y1="${ty(seg.a).toFixed(1)}" x2="${tx(seg.b).toFixed(1)}" y2="${ty(seg.b).toFixed(1)}" stroke="#1c1c1e" stroke-width="6" stroke-linecap="round"/>`;
+    const mx=(tx(seg.a)+tx(seg.b))/2, my=(ty(seg.a)+ty(seg.b))/2, off=16, perp=[seg.dir[1],-seg.dir[0]];
+    let lx=mx+perp[0]*off, ly=my+perp[1]*off;
+    if(Math.hypot(lx-cx,ly-cy)<Math.hypot(mx-cx,my-cy)){lx=mx-perp[0]*off;ly=my-perp[1]*off;}
+    svg+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="#8a8a8e" font-size="12" font-weight="700" text-anchor="middle" dominant-baseline="middle">${seg.id} · ${seg.len}</text>`;
+  });
+  svg+='</svg>';
+  return svg;
+}
+function cmWall(i,k,id,val){const a=cmGet(i).areas[k];const w=a.walls.find(x=>x.id===id);if(w)w.len=String(val).replace(/[^0-9]/g,'');const el=document.getElementById('cmdiag-'+i+'-'+k);if(el)el.innerHTML=areaDiagram(a);}
+
 function viewCheckMeasure(i){
   const j=JOBS[i], c=cmGet(i);
   return `<div class="wrap">
