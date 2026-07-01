@@ -300,13 +300,67 @@ function badge(st){const m={prog:['b-prog','In progress'],conf:['b-conf','Confir
 function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2200);}
 
 /* ---------------- views ---------------- */
+/* ---- roles: log in as office / a drafter / an installer ---- */
+let currentRole='office';
+function roleUser(){return drafter(currentRole)||installer(currentRole)||null;}
+function roleLabel(){const u=roleUser();return u?u.name:'Office (admin)';}
+function isDrafter(){return !!drafter(currentRole);}
+function isInstaller(){return !!installer(currentRole);}
+function openRoleSwitcher(){
+  const opt=(code,name,sub,initials)=>`<div class="pickrow" onclick="setRole('${code}')"><div class="avatar">${initials}</div><div style="flex:1"><div style="font-weight:700">${esc(name)}</div><div class="muted" style="font-size:13px">${esc(sub)}</div></div>${currentRole===code?'<span style="color:var(--accent);font-weight:800">✓</span>':''}</div>`;
+  $('#sheet').innerHTML=`<div class="grab"></div><b style="font-size:19px">Switch account</b>
+    <div class="muted" style="font-size:14px;margin:2px 0 8px">See the app as each role.</div>
+    ${opt('office','Office (admin)','Full access · scheduling & clients','🏢')}
+    <div class="cmsub">Draftspeople</div>
+    ${TEAM.drafters.map(d=>opt(d.code,d.name,'Drafter · '+drafterLoad(d.code)+' jobs',d.initials)).join('')}
+    <div class="cmsub">Installers</div>
+    ${TEAM.installers.map(t=>opt(t.code,t.name,'Installer · '+installerLoad(t.code)+' jobs',t.initials)).join('')}
+    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeSheet()">Cancel</button>`;
+  openSheet();
+}
+function setRole(code){currentRole=code;closeSheet();go('jobs');toast('Signed in as '+roleLabel());}
+function viewDrafterHome(code){
+  const d=drafter(code), mine=JOBS.map((j,i)=>({j,i})).filter(o=>o.j.drafter===code);
+  const stLab={drafting:['b-prog','Ready to draft'],review:['b-sched','In review'],approved:['b-conf','Approved']};
+  return `<div class="wrap">
+    <div class="head"><div class="logo">${d.initials}</div><div class="t"><h1 style="font-size:26px">${esc(d.name)}</h1><div class="sub" style="margin:0">Your drafting queue</div></div><div class="icoBtn accent" onclick="openRoleSwitcher()">⇄</div></div>
+    <div class="stats">
+      <div class="stat"><div class="n">${mine.length}</div><div class="l">Assigned</div></div>
+      <div class="stat"><div class="n">${mine.filter(o=>dfGet(o.i).status==='review').length}</div><div class="l">In review</div></div>
+      <div class="stat dark"><div class="n">${mine.filter(o=>dfGet(o.i).status==='approved').length}</div><div class="l">Approved</div></div>
+    </div>
+    <div class="cmsub">Jobs to draw</div>
+    ${mine.length?mine.map(o=>{const df=dfGet(o.i),lab=stLab[df.status]||stLab.drafting;return `<div class="job" onclick="go('drafting',${o.i})">
+      <div class="row"><h3 style="flex:1;font-size:18px">${esc(o.j.ref)} ${esc(o.j.client)}</h3><span class="badge ${lab[0]}">${lab[1]}</span></div>
+      <div class="meta">${esc(o.j.builder)} · ${esc(o.j.jobno)}</div>
+      <div class="line">📐 ${cmGet(o.i).areas.length} areas · ${cmPhotoCount(o.i)} photos · Rev ${df.revisions[df.revisions.length-1].rev}</div>
+      <div class="line">📍 ${esc(o.j.addr)}</div>
+    </div>`;}).join(''):'<div class="muted" style="padding:10px 0">No jobs assigned to you yet.</div>'}
+    <div style="height:8px"></div>
+  </div>`;
+}
+function viewInstallerHome(code){
+  const ins=installer(code), mine=JOBS.map((j,i)=>({j,i})).filter(o=>o.j.installer===code), next=mine[0];
+  return `<div class="wrap">
+    <div class="head"><div class="logo">${ins.initials}</div><div class="t"><h1 style="font-size:26px">${esc(ins.name)}</h1><div class="sub" style="margin:0">Your install schedule</div></div><div class="icoBtn accent" onclick="openRoleSwitcher()">⇄</div></div>
+    ${next?`<div class="banner"><div><b>Next on site</b><div class="s">${esc(next.j.ref)} ${esc(next.j.client)} · ${esc(next.j.date)}</div></div><div class="spacer"></div><div style="font-size:22px">→</div></div>`:''}
+    <div class="cmsub">Your jobs</div>
+    ${mine.length?mine.map(o=>`<div class="job" onclick="go('installer',${o.i})">
+      <div class="row"><h3 style="flex:1;font-size:18px">${esc(o.j.ref)} ${esc(o.j.client)}</h3>${badge(o.j.status)}</div>
+      <div class="line">📅 ${esc(o.j.date)}${o.j.days>1?' · '+o.j.days+' days':''} · ${esc(o.j.time)}</div>
+      <div class="line">📍 ${esc(o.j.addr)}</div>
+    </div>`).join(''):'<div class="muted" style="padding:10px 0">No jobs booked.</div>'}
+    <div style="height:8px"></div>
+  </div>`;
+}
+
 function viewJobs(){
   const active=JOBS.filter(j=>j.status!=='new').length, sched=JOBS.length+3;
   return `<div class="wrap">
     <div class="head">
       <div class="logo">MK</div>
       <div class="t"><h1>Mii Kitchens</h1><div class="sub" style="margin:0">Your jobs at a glance</div></div>
-      <div class="icoBtn">🕐</div><div class="icoBtn accent">◈</div>
+      <div class="icoBtn">🕐</div><div class="icoBtn accent" onclick="openRoleSwitcher()">⇄</div>
     </div>
     <div class="banner"><div><b>Today's run sheet</b><div class="s">1 job on site today</div></div><div class="spacer"></div><div style="font-size:22px">→</div></div>
     <div class="stats">
@@ -380,9 +434,14 @@ function viewReports(){
     <div style="height:8px"></div></div>`;
 }
 function viewSettings(){
+  const acct=`<div class="card"><b>Account</b><div class="assignrow" style="margin-top:4px"><div class="avatar">${roleUser()?roleUser().initials:'🏢'}</div><div style="flex:1"><div style="font-weight:700">${esc(roleLabel())}</div><div class="muted" style="font-size:13px">${roleUser()?(isDrafter()?'Draftsperson':'Installer'):'Office · full access'}</div></div></div><button class="btn ghost" style="width:100%;margin-top:6px" onclick="openRoleSwitcher()">⇄ Switch account</button></div>`;
+  const appearance=`<div class="card"><div class="row"><div><b>Appearance</b><div class="muted" style="font-size:14px">Light, dark, or follow your device.</div></div></div><div class="seg" style="margin-top:12px"><div class="o">Light</div><div class="o">Dark</div><div class="o on">Auto</div></div></div>`;
+  if(currentRole!=='office'){
+    return `<div class="wrap"><h1 style="margin-top:6px">Account</h1><div class="sub">Signed in as ${esc(roleLabel())}</div>${acct}${appearance}<div style="height:8px"></div></div>`;
+  }
   return `<div class="wrap"><h1 style="margin-top:6px">Settings</h1><div class="sub">Company, team &amp; integrations</div>
-    <div class="card"><div class="row"><div><b>Appearance</b><div class="muted" style="font-size:14px">Light, dark, or follow your device.</div></div></div>
-      <div class="seg" style="margin-top:12px"><div class="o">Light</div><div class="o">Dark</div><div class="o on">Auto</div></div></div>
+    ${acct}
+    ${appearance}
     <div class="card"><b>Google integration</b>
       <div class="muted" style="font-size:14px;margin:6px 0 12px">Connect Google to sync jobs to Calendar, save PDFs to Drive and email clients from Gmail.</div>
       <div class="row"><span class="kdot"></span><div style="font-size:15px">Connected as<br><b>office@miikitchens.com.au</b></div><span class="spacer"></span><button class="pill">Disconnect</button></div></div>
@@ -703,6 +762,7 @@ function viewDrafting(i){
       ${d?`<div class="assignrow"><div class="avatar">${d.initials}</div><div style="flex:1"><div style="font-weight:700">${esc(d.name)}</div><div class="muted" style="font-size:13px">${drafterLoad(j.drafter)} job(s) in drafting</div></div></div>`:'<div class="muted" style="padding:6px 0">Not assigned.</div>'}
       <button class="btn ghost" style="width:100%;margin-top:6px" onclick="openDrafterPicker(${i})">${d?'Reassign draftsperson':'Assign draftsperson'}</button>
     </div>
+    <div class="card"><b>Site check-measure</b><div class="muted" style="font-size:13px;margin:2px 0 8px">${cmGet(i).areas.length} areas · ${cmPhotoCount(i)} photos · measured by ${esc(cmGet(i).measuredBy||'site')}</div><button class="btn ghost" style="width:100%" onclick="go('checkmeasure',${i})">View measurements &amp; photos ›</button></div>
     <div class="card"><b>Design status</b>
       <div class="seg" style="margin-top:10px">
         <div class="o ${st==='drafting'?'on':''}" onclick="dfSetStatus(${i},'drafting')">Drafting</div>
@@ -754,7 +814,8 @@ function viewDocs(i){
 
 /* ---------------- router ---------------- */
 let state={tab:'jobs',arg:null};
-const TABS=[['jobs','📋','Jobs'],['calendar','🗓️','Calendar'],['clients','👥','Clients'],['reports','📄','Reports'],['settings','☀️','Settings']];
+const OFFICE_TABS=[['jobs','📋','Jobs'],['calendar','🗓️','Calendar'],['clients','👥','Clients'],['reports','📄','Reports'],['settings','☀️','Settings']];
+const STAFF_TABS=[['jobs','📋','My jobs'],['calendar','🗓️','Calendar'],['settings','☀️','Account']];
 function go(tab,arg){state={tab,arg:arg??null};window.scrollTo(0,0);render();}
 function render(){
   const t=state.tab;
@@ -769,9 +830,12 @@ function render(){
   else if(t==='clients')app.innerHTML=viewClients();
   else if(t==='reports')app.innerHTML=viewReports();
   else if(t==='settings')app.innerHTML=viewSettings();
-  else app.innerHTML=viewJobs();
-  const activeTab=['job','checkmeasure','installsched','drafting','docs'].includes(t)?'jobs':(['client'].includes(t)?'clients':(['installer'].includes(t)?'reports':t));
-  $('#tabbar').innerHTML=TABS.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
+  else app.innerHTML=(currentRole==='office')?viewJobs():(isDrafter()?viewDrafterHome(currentRole):viewInstallerHome(currentRole));
+  let activeTab;
+  if(currentRole==='office') activeTab=['job','checkmeasure','installsched','drafting','docs'].includes(t)?'jobs':(t==='client'?'clients':(t==='installer'?'reports':t));
+  else activeTab=(t==='calendar')?'calendar':(t==='settings')?'settings':'jobs';
+  const tabs=currentRole==='office'?OFFICE_TABS:STAFF_TABS;
+  $('#tabbar').innerHTML=tabs.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}</button>`).join('');
 }
 render();
 </script>
