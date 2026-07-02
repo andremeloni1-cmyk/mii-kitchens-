@@ -38,7 +38,7 @@
     display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:-1px;box-shadow:var(--shadow)}
   .head .t{flex:1;min-width:0}
   .icoBtn{width:46px;height:46px;border-radius:14px;background:var(--card);box-shadow:var(--shadow);
-    display:flex;align-items:center;justify-content:center;font-size:20px}
+    display:flex;align-items:center;justify-content:center;font-size:20px;position:relative;flex:none}
   .icoBtn.accent{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
   /* run sheet banner */
   .banner{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-radius:22px;
@@ -186,6 +186,13 @@
   .swname{font-size:11px;margin-top:5px;line-height:1.2;color:var(--muted)}
   .swopt.on .swname{color:var(--ink);font-weight:700}
   .tradeic{width:38px;height:38px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+  /* insights bar rows */
+  .brow{display:flex;align-items:center;gap:10px;margin:9px 0}
+  .brow .bl{width:104px;font-size:13px;color:var(--muted);font-weight:600;flex:none}
+  .btrack{flex:1;height:12px;border-radius:6px;background:var(--card2);overflow:hidden}
+  .bfill{height:100%;border-radius:6px;min-width:2px}
+  .brow .bv{min-width:34px;text-align:right;font-weight:800;font-size:13px;flex:none}
+  .bellDot{position:absolute;top:-4px;right:-4px;background:var(--accent);color:#fff;font-size:11px;font-weight:800;border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px}
   /* dark mode — lighter iOS-style grey, not pure black */
   body.theme-dark{--bg:#1c1c1e;--card:#2c2c2e;--card2:#3a3a3c;--ink:#f2f2f7;--muted:#9a9aa0;--line:#3a3a3c;--shadow:0 8px 24px rgba(0,0,0,.4)}
   body.theme-dark .tabbar{background:#2c2c2e;box-shadow:0 10px 30px rgba(0,0,0,.5)}
@@ -304,6 +311,16 @@ let pickerState=null;
    and calls save(); the whole demo survives a refresh and can be reset from
    Settings. Keyed by job index — stable for this demo's data. */
 const DB_KEY='mk_db_v1';
+/* Seed service requests + activity so the office queue and feed aren't empty. */
+const MAINT_SEED=[
+  {id:2,job:0,issue:'Soft-close hinge on pantry door not engaging',status:'open',by:'client',at:'Yesterday',installer:null},
+  {id:1,job:1,issue:'Kick panel near dishwasher lifted — needs re-clip',status:'scheduled',by:'office',at:'Mon 29 Jun',installer:'LEE'}
+];
+const ACT_SEED=[
+  {icon:'✅',text:'Design Rev C approved — QU3190 Nuzzo',at:'1 Jul'},
+  {icon:'📅',text:'Sam Turner booked — QU3510 Fairmont Homes',at:'30 Jun'},
+  {icon:'💰',text:'Deposit received — QU3521 Metricon Lot 402',at:'29 Jun'}
+];
 function seedDB(){
   return {
     jobs:JSON.parse(JSON.stringify(JOBS)),
@@ -313,12 +330,24 @@ function seedDB(){
     paid:{},            // jobIndex -> count of milestones paid
     reports:{},         // jobIndex -> {rooms:{name:bool}, notes, sent}
     invited:{},         // jobIndex -> true when client link sent
+    prod:{},            // jobIndex -> production & delivery tracker
+    prices:{},          // quote ref -> $ (jobs created in the UI)
+    maint:JSON.parse(JSON.stringify(MAINT_SEED)),   // service / warranty requests
+    activity:JSON.parse(JSON.stringify(ACT_SEED)),  // newest-first feed
+    actSeen:0,          // how many feed items the office has seen
     flags:{google:true},
     inbox:0             // how many inbox jobs already pulled in
   };
 }
 function loadDB(){
-  try{const r=JSON.parse(localStorage.getItem(DB_KEY));if(r&&r.jobs&&r.jobs.length)return r;}catch(e){}
+  try{const r=JSON.parse(localStorage.getItem(DB_KEY));if(r&&r.jobs&&r.jobs.length){
+    // migrate stores added after v1 so a previously-saved demo keeps working
+    r.prod=r.prod||{}; r.prices=r.prices||{};
+    r.maint=r.maint||JSON.parse(JSON.stringify(MAINT_SEED));
+    r.activity=r.activity||JSON.parse(JSON.stringify(ACT_SEED));
+    if(r.actSeen==null)r.actSeen=0;
+    return r;
+  }}catch(e){}
   const d=seedDB();try{localStorage.setItem(DB_KEY,JSON.stringify(d));}catch(e){}
   return d;
 }
@@ -529,6 +558,14 @@ function viewInstallerHome(code){
       <div class="line">📅 ${esc(o.j.date)}${o.j.days>1?' · '+o.j.days+' days':''} · ${esc(o.j.time)}</div>
       <div class="line">📍 ${esc(o.j.addr)}</div>
     </div>`).join(''):'<div class="muted" style="padding:10px 0">No jobs booked.</div>'}
+    ${(function(){
+      const calls=DB.maint.filter(m=>m.installer===code&&m.status==='scheduled');
+      return calls.length?`<div class="cmsub">Service calls</div>`+calls.map(m=>{const j=JOBS[m.job];return j?`<div class="job" onclick="go('installer',${m.job})">
+        <div class="row"><h3 style="flex:1;font-size:18px">${esc(j.ref)} ${esc(j.client)}</h3><span class="badge b-sched">Service</span></div>
+        <div class="line">🔧 ${esc(m.issue)}</div>
+        <div class="line">📍 ${esc(j.addr)}</div>
+      </div>`:'';}).join(''):'';
+    })()}
     <div style="height:8px"></div>
   </div>`;
 }
@@ -554,34 +591,51 @@ function jobsListHTML(){
 }
 function setJobFilter(f){jobFilter=f;const el=$('#jobList');if(el)el.innerHTML=jobsListHTML();document.querySelectorAll('#jobFilters .pill').forEach(p=>p.classList.toggle('on',p.dataset.f===f));}
 function jobSearch(v){jobQuery=v;const el=$('#jobList');if(el)el.innerHTML=jobsListHTML();}
+/* A job was unshifted onto JOBS: shift all index-keyed state so existing jobs
+   keep their check-measure/drafting/photos/etc. Also bumps 'insN' photo keys
+   and maintenance-request job pointers. */
+function shiftKeyed(){
+  ['cm','df','docs','photos','sel','msgs','reports','paid','invited','prod'].forEach(key=>{
+    const src=DB[key]||{},out={};
+    Object.keys(src).forEach(k=>{
+      const m=/^(ins)?(\d+)$/.exec(k);
+      out[m?((m[1]||'')+(parseInt(m[2],10)+1)):k]=src[k];
+    });
+    DB[key]=out;
+  });
+  (DB.maint||[]).forEach(m=>{m.job++;});
+  cmState=DB.cm;dfState=DB.df;docState=DB.docs;uploaded=DB.photos;
+}
 function checkInbox(){
   if(DB.inbox>=INBOX_QUEUE.length){toast('Inbox empty — no new jobs');return;}
   const nj=JSON.parse(JSON.stringify(INBOX_QUEUE[DB.inbox]));DB.inbox++;JOBS.unshift(nj);
-  // shift index-keyed state so existing jobs keep their check-measure/drafting/etc.
-  ['cm','df','docs','photos','sel','msgs','reports','paid','invited'].forEach(key=>{
-    const src=DB[key],out={};Object.keys(src).forEach(k=>{const n=parseInt(k,10);out[isNaN(n)?k:n+1]=src[k];});DB[key]=out;
-  });
-  cmState=DB.cm;dfState=DB.df;docState=DB.docs;uploaded=DB.photos;
+  shiftKeyed();
   jobFilter='New';jobQuery='';save();go('jobs');toast('New job pulled in: '+nj.ref+' '+nj.client);
 }
 function runSheetJob(){const i=JOBS.findIndex(j=>/1\s*jul/i.test(j.date)&&j.status!=='new');return i>=0?i:0;}
-function jobsValue(){return JOBS.filter(j=>j.status!=='new').reduce((n,j)=>n+(PRICE_BY_REF[j.ref]||24000),0);}
+function priceOf(j){return (DB.prices&&DB.prices[j.ref])||PRICE_BY_REF[j.ref]||24000;}
+function jobsValue(){return JOBS.filter(j=>j.status!=='new').reduce((n,j)=>n+priceOf(j),0);}
 function viewJobs(){
   const active=JOBS.filter(j=>j.status!=='new').length, sched=JOBS.filter(j=>j.installer).length;
   const onSiteToday=JOBS.filter(j=>/1\s*jul/i.test(j.date)&&j.status!=='new').length;
   return `<div class="wrap">
     <div class="head">
       <div class="logo">MK</div>
-      <div class="t"><h1>Mii Kitchens</h1><div class="sub" style="margin:0">Your jobs at a glance</div></div>
-      <div class="icoBtn" onclick="go('calendar')">🕐</div><div class="icoBtn accent" onclick="openRoleSwitcher()">⇄</div>
+      <div class="t"><h1 style="font-size:23px">Mii Kitchens</h1><div class="sub" style="margin:0">Your jobs at a glance</div></div>
+      <div class="icoBtn" onclick="go('activity')">🔔${unseenActs()?`<span class="bellDot">${unseenActs()}</span>`:''}</div>
+      <div class="icoBtn" onclick="go('insights')">📊</div>
+      <div class="icoBtn accent" onclick="openRoleSwitcher()">⇄</div>
     </div>
     <div class="banner" onclick="go('job',${runSheetJob()})" style="cursor:pointer"><div><b>Today's run sheet</b><div class="s">${onSiteToday} job${onSiteToday===1?'':'s'} on site today</div></div><div class="spacer"></div><div style="font-size:22px">→</div></div>
     <div class="stats">
       <div class="stat"><div class="n">${active}</div><div class="l">Active</div></div>
       <div class="stat"><div class="n">${sched}</div><div class="l">Booked</div></div>
-      <div class="stat dark"><div class="n" style="font-size:20px">${money(jobsValue())}</div><div class="l">Value</div></div>
+      <div class="stat dark"><div class="n" style="font-size:17px;white-space:nowrap">${money(jobsValue())}</div><div class="l">Value</div></div>
     </div>
-    <button class="wide" onclick="go('installsched')">📅 Install schedule — assign installers</button>
+    <div class="row" style="gap:10px">
+      <button class="wide" style="flex:1" onclick="go('installsched')">📅 Install schedule</button>
+      <button class="wide" style="flex:1" onclick="openNewJob()">＋ New job</button>
+    </div>
     <div class="search"><span>🔍</span><input value="${esc(jobQuery)}" oninput="jobSearch(this.value)" placeholder="Search jobs, clients, addresses…" style="border:0;background:transparent;font:inherit;color:var(--ink);flex:1;outline:none"></div>
     <div class="filters" id="jobFilters">
       ${Object.keys(JOB_FILTERS).map(f=>`<button class="pill ${f===jobFilter?'on':''}" data-f="${f}" onclick="setJobFilter('${f}')">${f}</button>`).join('')}
@@ -674,10 +728,55 @@ function viewCalendar(){
   </div>`;
 }
 let clientQuery='';
+/* Site contact per company (demo data). */
+const CONTACTS={
+  'mii Kitchens':{person:'André Meloni',phone:'0400 111 222',email:'office@miikitchens.com.au'},
+  'A&Z (via Ingenuity)':{person:'Arthur Zheng',phone:'0411 234 567',email:'projects@ingenuity.com.au'},
+  'Harrington Kitchens':{person:'Paul Harrington',phone:'0422 345 678',email:'paul@harringtonkitchens.com.au'},
+  'Eagle Homes':{person:'Dave Corrigan — supervisor',phone:'0433 456 789',email:'construction@eaglehomes.com.au'},
+  'Fairmont Homes':{person:'Meera Patel',phone:'0444 567 890',email:'admin@fairmonthomes.com.au'},
+  'Metricon':{person:'Box Hill site office',phone:'0455 678 901',email:'supervisors@metricon.com.au'},
+  'McDonald Jones':{person:'Riverstone site office',phone:'0466 789 012',email:'nsw@mcdonaldjones.com.au'},
+  'Wisdom Homes':{person:'Leppington site office',phone:'0477 890 123',email:'build@wisdomhomes.com.au'},
+  'Clarendon Homes':{person:'Marsden Park site office',phone:'0488 901 234',email:'sites@clarendon.com.au'}
+};
+/* Jobs belonging to a company: exact builder match, or the client name starts
+   with the company's first word (e.g. "Fairmont Homes — Patel" → Fairmont Homes). */
+function companyJobs(name){
+  const p=name.split(' ')[0].toLowerCase();
+  return JOBS.map((j,i)=>({j,i})).filter(o=>o.j.builder===name||o.j.client.toLowerCase().indexOf(p)===0);
+}
 function clientsListHTML(){
   const q=clientQuery.trim().toLowerCase();
-  const list=CLIENTS.filter(c=>!q||(c.name+' '+c.sub).toLowerCase().includes(q));
-  return list.length?list.map(c=>`<div class="clientcard" style="--accent:${c.color}"><div class="mono">${esc(c.mono)}</div><div style="flex:1"><div style="font-weight:800;font-size:18px">${esc(c.name)}</div><div class="muted" style="font-size:14px">${esc(c.sub)}</div></div></div>`).join(''):'<div class="muted" style="padding:16px 2px">No companies match.</div>';
+  const list=CLIENTS.map((c,ci)=>{
+    const jobs=companyJobs(c.name), active=jobs.filter(o=>o.j.status!=='new').length;
+    return {c,ci,sub:jobs.length+' job'+(jobs.length===1?'':'s')+(active?' · '+active+' active':'')};
+  }).filter(o=>!q||(o.c.name+' '+o.sub).toLowerCase().includes(q));
+  return list.length?list.map(o=>`<div class="clientcard" style="--accent:${o.c.color};cursor:pointer" onclick="go('clientco',${o.ci})"><div class="mono">${esc(o.c.mono)}</div><div style="flex:1;min-width:0"><div style="font-weight:800;font-size:18px">${esc(o.c.name)}</div><div class="muted" style="font-size:14px">${esc(o.sub)}</div></div><span class="muted">›</span></div>`).join(''):'<div class="muted" style="padding:16px 2px">No companies match.</div>';
+}
+function viewClientCo(ci){
+  const c=CLIENTS[ci]; if(!c)return viewClients();
+  const jobs=companyJobs(c.name), active=jobs.filter(o=>o.j.status!=='new').length;
+  const value=jobs.reduce((n,o)=>n+priceOf(o.j),0), ct=CONTACTS[c.name]||{};
+  return `<div class="wrap">
+    <div class="back" onclick="go('clients')">‹ Clients</div>
+    <div class="head"><div class="mono" style="width:52px;height:52px;font-size:17px;flex:none">${esc(c.mono)}</div><div class="t"><h2>${esc(c.name)}</h2><div class="muted" style="font-size:14px">Builder / company</div></div></div>
+    <div class="stats">
+      <div class="stat"><div class="n">${jobs.length}</div><div class="l">Jobs</div></div>
+      <div class="stat"><div class="n">${active}</div><div class="l">Active</div></div>
+      <div class="stat dark"><div class="n" style="font-size:19px">${money(value)}</div><div class="l">Value</div></div>
+    </div>
+    <div class="card"><b>Contact</b>
+      ${infoRow('Contact',ct.person||'—')}
+      ${infoRow('Phone',ct.phone||'—')}
+      ${infoRow('Email',ct.email||'—')}
+      <div class="row" style="gap:10px;margin-top:10px">
+        <a class="btn ghost" style="flex:1;text-decoration:none" href="tel:${esc((ct.phone||'').replace(/\s/g,''))}">📞 Call</a>
+        <a class="btn ghost" style="flex:1;text-decoration:none" href="mailto:${esc(ct.email||'')}">✉️ Email</a>
+      </div></div>
+    <div class="cmsub">Jobs</div>
+    ${jobs.length?jobs.map(o=>jobCard(o.j,o.i)).join(''):'<div class="muted" style="padding:10px 0">No jobs yet.</div>'}
+    <div style="height:8px"></div></div>`;
 }
 function clientSearch(v){clientQuery=v;const el=$('#clientList');if(el)el.innerHTML=clientsListHTML();}
 function viewClients(){
@@ -699,6 +798,7 @@ function viewReports(){
     <div class="stats"><div class="stat"><div class="n" style="color:var(--accent)">${need}</div><div class="l" style="letter-spacing:0;text-transform:none;font-size:12px">Needs report</div></div>
     <div class="stat"><div class="n" style="color:var(--blue)">${drafts}</div><div class="l" style="letter-spacing:0;text-transform:none;font-size:12px">Drafts</div></div>
     <div class="stat"><div class="n" style="color:var(--green)">${sent}</div><div class="l" style="letter-spacing:0;text-transform:none;font-size:12px">Sent</div></div></div>
+    <button class="wide" onclick="go('maintenance')">🔧 Maintenance &amp; warranty — ${maintOpenCount()} open</button>
     <div class="filters">${Object.keys(fmap).map(f=>`<button class="pill ${f===repFilter?'accent on':''}" onclick="setRepFilter('${f}')">${f}</button>`).join('')}</div>
     ${shown.length?shown.map(o=>{const b=rb[o.s];return `<div class="job" onclick="go('installer',${o.i})">
       <div class="row"><h3 style="flex:1;font-size:18px">${esc(o.j.ref)} ${esc(o.j.client)}</h3>${badge(o.j.status)}</div>
@@ -757,6 +857,75 @@ function updatePassword(){
   toast('Password updated ✓');
 }
 
+/* ---- activity feed (office bell) ---- */
+function logAct(icon,text){DB.activity.unshift({icon,text,at:'Just now'});save();}
+function unseenActs(){return Math.max(0,(DB.activity||[]).length-(DB.actSeen||0));}
+function viewActivity(){
+  DB.actSeen=DB.activity.length;save();
+  return `<div class="wrap">
+    <div class="back" onclick="go('jobs')">‹ Jobs</div>
+    <h2>Activity</h2><div class="sub">Everything that's happened across your jobs, newest first.</div>
+    <div class="card">${DB.activity.length?DB.activity.map(a=>`<div class="doc"><div class="tradeic">${a.icon}</div><div style="flex:1"><div style="font-weight:600">${esc(a.text)}</div><div class="muted" style="font-size:13px">${esc(a.at)}</div></div></div>`).join(''):'<div class="muted" style="padding:8px 0">Nothing yet — actions across the app will show up here.</div>'}</div>
+    <div style="height:8px"></div></div>`;
+}
+
+/* ---- business insights (office) ---- */
+function barChart(rows,color){
+  const max=Math.max(1,...rows.map(r=>r.v));
+  return rows.map(r=>`<div class="brow"><span class="bl">${esc(r.l)}</span><div class="btrack"><div class="bfill" style="width:${Math.round(r.v/max*100)}%;background:${color}"></div></div><span class="bv">${esc(r.fmt!=null?r.fmt:r.v)}</span></div>`).join('');
+}
+function viewInsights(){
+  const stageRows=STAGES.map((s,k)=>({l:s,v:JOBS.filter(j=>Math.min(j.stage,4)===k).length}));
+  const monthRows=[5,6,7].map(m=>({l:MONTHS[m],v:jobEvents().filter(o=>o.d.sM===m).length}));
+  const instRows=TEAM.installers.map(t=>{const d=(INSTALLER_BUSY[t.code]||[]).length;return {l:t.name,v:d,fmt:d+'d'};});
+  const drafRows=TEAM.drafters.map(d=>({l:d.name,v:drafterLoad(d.code)}));
+  const booked=JOBS.filter(j=>j.installer).reduce((n,j)=>n+priceOf(j),0);
+  const openM=DB.maint.filter(m=>m.status!=='done').length;
+  return `<div class="wrap">
+    <div class="back" onclick="go('jobs')">‹ Jobs</div>
+    <h2>Business insights</h2><div class="sub">Where the pipeline sits right now.</div>
+    <div class="stats">
+      <div class="stat"><div class="n" style="font-size:19px">${money(jobsValue())}</div><div class="l">Pipeline</div></div>
+      <div class="stat"><div class="n" style="font-size:19px">${money(booked)}</div><div class="l">Booked</div></div>
+      <div class="stat dark"><div class="n">${openM}</div><div class="l">Service calls</div></div>
+    </div>
+    <div class="card"><b>Jobs by stage</b><div class="muted" style="font-size:13px;margin:2px 0 4px">All ${JOBS.length} jobs across the pipeline.</div>${barChart(stageRows,'var(--accent)')}</div>
+    <div class="card"><b>Installs by month</b><div class="muted" style="font-size:13px;margin:2px 0 4px">Scheduled install starts.</div>${barChart(monthRows,'var(--blue)')}</div>
+    <div class="card"><b>Installer days booked — July</b><div class="muted" style="font-size:13px;margin:2px 0 4px">Booked site days per installer.</div>${barChart(instRows,'var(--green)')}</div>
+    <div class="card"><b>Drafting workload</b><div class="muted" style="font-size:13px;margin:2px 0 4px">Jobs currently with each draftsperson.</div>${barChart(drafRows,'var(--blue)')}</div>
+    <div style="height:8px"></div></div>`;
+}
+
+/* ---- manual job creation (office) ---- */
+function openNewJob(){
+  $('#sheet').innerHTML=`<div class="grab"></div><b style="font-size:19px">New job</b>
+    <div class="muted" style="font-size:14px;margin:2px 0 4px">Create a job by hand — e.g. a phone enquiry that isn't on the calendar yet.</div>
+    <label class="fld">Quote ref</label><input class="tf" id="njRef" placeholder="QU3630" autocapitalize="characters">
+    <label class="fld">Client / site name</label><input class="tf" id="njClient" placeholder="Smith — Kellyville">
+    <label class="fld">Builder</label><select class="tf" id="njBuilder">${CLIENTS.map(c=>`<option>${esc(c.name)}</option>`).join('')}</select>
+    <label class="fld">Site address</label><input class="tf" id="njAddr" placeholder="1 Example St, Suburb">
+    <label class="fld">Tentative date</label><input class="tf" id="njDate" placeholder="Mon 17 Aug">
+    <label class="fld">Rooms (comma separated)</label><input class="tf" id="njRooms" value="Kitchen">
+    <label class="fld">Quote value ($)</label><input class="tf" id="njPrice" inputmode="numeric" placeholder="24000">
+    <button class="btn primary" style="margin-top:12px" onclick="createJob()">Create job</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>`;
+  openSheet();
+}
+function createJob(){
+  const ref=($('#njRef').value||'').trim().toUpperCase(), client=($('#njClient').value||'').trim();
+  if(!ref||!client){toast('Quote ref and client are required');return;}
+  const rooms=($('#njRooms').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const price=parseInt(($('#njPrice').value||'').replace(/[^0-9]/g,''),10);
+  const maxNo=JOBS.reduce((n,j)=>Math.max(n,parseInt(String(j.jobno).replace(/[^0-9]/g,''),10)||0),0);
+  JOBS.unshift({ref,client,builder:$('#njBuilder').value,jobno:'JOB-'+(maxNo+1),drafter:null,installer:null,
+    date:($('#njDate').value||'').trim()||'TBC',time:'All day',addr:($('#njAddr').value||'').trim()||'Address TBC',
+    files:0,done:0,total:8,status:'new',stage:0,rooms:rooms.length?rooms:['Kitchen']});
+  shiftKeyed();
+  if(price)DB.prices[ref]=price;
+  logAct('🆕','New job created — '+ref+' '+client);
+  save();closeSheet();jobFilter='New';jobQuery='';go('jobs');toast(ref+' created');
+}
+
 /* ---- job detail: the pipeline ---- */
 function viewJob(i){
   const j=JOBS[i];const d=drafter(j.drafter),ins=installer(j.installer);
@@ -783,6 +952,12 @@ function viewJob(i){
         ${d?`<div class="assignrow"><div class="avatar">${d.initials}</div><div><div style="font-weight:700">${esc(d.name)}</div><div class="muted" style="font-size:13px">Drafting in progress · Rev C</div></div></div>`
             :`<div class="muted" style="font-size:14px;padding:6px 0">Not assigned yet.</div>`}
         <button class="btn ghost" style="width:100%;margin-top:6px" onclick="go('drafting',${i})">Open drafting &amp; design ›</button>
+      </div></div>
+
+    <div class="stage"><div class="sh">${sn(2)}<div style="flex:1"><b>Production &amp; delivery</b><div class="muted" style="font-size:13px">Factory build, materials &amp; delivery</div></div></div>
+      <div class="body">
+        <div class="muted" style="font-size:14px;padding:2px 0 10px">${esc(prodSummary(i))}</div>
+        <button class="btn ghost" style="width:100%" onclick="go('production',${i})">Open production &amp; delivery ›</button>
       </div></div>
 
     <div class="stage"><div class="sh">${sn(3)}<div style="flex:1"><b>Installation</b><div class="muted" style="font-size:13px">Assigned installer fits the kitchen on site</div></div></div>
@@ -839,7 +1014,7 @@ function jobPrice(i){
 function payNext(i){
   const p=jobPrice(i);const pc=p.paidCount;
   if(pc>=p.milestones.length){toast('All instalments paid — thank you!');return;}
-  DB.paid[i]=pc+1;save();toast('Payment received: '+money(p.milestones[pc].amt));render();
+  DB.paid[i]=pc+1;logAct('💰','Payment received — '+JOBS[i].ref+' · '+money(p.milestones[pc].amt));save();toast('Payment received: '+money(p.milestones[pc].amt));render();
 }
 /* Real Laminex Australia colour range (Colour Collection: Whites & Neutrals,
    Minerals, Woodgrains) + hardware finishes. Swatch hex are representative of
@@ -1008,12 +1183,15 @@ function viewClient(i){
     <div class="card"><b>Install schedule</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Your install and the trades coordinated by Mii Kitchens.</div>
       ${jobSchedule(i).map(s=>`<div class="doc"><div class="tradeic">${s.icon}</div><div style="flex:1"><div style="font-weight:700">${esc(s.trade)}</div><div class="muted" style="font-size:13px">${esc(s.who)} · ${esc(s.date)}</div></div><span class="badge ${s.status==='booked'?'b-conf':'b-sched'}" style="font-size:11px">${s.status==='booked'?'Booked':'Tentative'}</span></div>`).join('')}
     </div>
+    <div class="card"><b>Warranty &amp; service</b><div class="muted" style="font-size:13px;margin:2px 0 8px">Your kitchen is covered by a 7-year workmanship warranty. Something not right? Request a visit.</div>
+      ${DB.maint.filter(m=>m.job===i).map(m=>`<div class="doc"><div class="tradeic">🔧</div><div style="flex:1"><div style="font-weight:600">${esc(m.issue)}</div><div class="muted" style="font-size:13px">${esc(m.at)} · ${m.status==='done'?'Resolved':(m.status==='scheduled'?'Visit scheduled'+(m.installer?' — '+esc(installer(m.installer).name):''):'Received — being scheduled')}</div></div></div>`).join('')}
+      <button class="btn ghost" style="width:100%;margin-top:6px" onclick="openMaintRequest(${i})">🔧 Request a service visit</button></div>
     <div class="card"><b>Messages</b><div class="muted" style="font-size:14px;margin:4px 0 10px">Chat with the Mii Kitchens team about your kitchen.</div>
       ${(DB.msgs[i]||[]).length?(DB.msgs[i]||[]).map(m=>`<div class="doc"><div class="avatar" style="width:34px;height:34px;font-size:12px">${m.from==='client'?'👤':'MK'}</div><div style="flex:1"><div style="font-weight:700">${m.from==='client'?'You':'Mii Kitchens'} <span class="muted" style="font-weight:500;font-size:12px">· ${esc(m.at)}</span></div><div class="muted" style="font-size:14px">${esc(m.text)}</div></div></div>`).join(''):'<div class="muted" style="font-size:14px;padding:2px 0 8px">No messages yet.</div>'}
       <button class="btn primary" style="margin-top:8px" onclick="openMessage(${i},0)">✉️ Message the team</button></div>
     <div style="height:8px"></div></div>`;
 }
-function sendClientLink(i){DB.invited[i]=true;save();toast('Portal link + login emailed to '+JOBS[i].client);render();}
+function sendClientLink(i){DB.invited[i]=true;logAct('✉️','Portal invite sent — '+JOBS[i].ref+' '+JOBS[i].client);save();toast('Portal link + login emailed to '+JOBS[i].client);render();}
 function openMessage(i,change){
   $('#sheet').innerHTML=`<div class="grab"></div><b style="font-size:19px">${change?'Request a change':'Message the team'}</b>
     <div class="muted" style="font-size:14px;margin:2px 0 8px">${esc(JOBS[i].ref)} ${esc(JOBS[i].client)}</div>
@@ -1027,6 +1205,7 @@ function sendMessage(i,change){
   DB.msgs[i]=DB.msgs[i]||[];
   DB.msgs[i].push({from:isClient()?'client':'office',text:(change?'[Change request] ':'')+t,at:'Just now'});
   if(change)dfGet(i).status='drafting';
+  logAct('💬',(change?'Change request':'New message')+' — '+JOBS[i].ref+' '+JOBS[i].client);
   save();closeSheet();toast(change?'Change request sent to Mii Kitchens':'Message sent');render();
 }
 
@@ -1080,8 +1259,8 @@ function viewInstaller(i){
 function repGet(i){if(!DB.reports[i]){DB.reports[i]={rooms:{},notes:'',sent:false};save();}return DB.reports[i];}
 function insToggleRoom(i,room,el){const r=repGet(i);r.rooms[room]=!r.rooms[room];if(el)el.classList.toggle('on',r.rooms[room]);save();}
 function insNotes(i,v){repGet(i).notes=v;save();}
-function insSendReport(i){const r=repGet(i);r.sent=true;save();toast('Completion report PDF emailed to office & client');render();}
-function insComplete(i){const j=JOBS[i];j.stage=4;j.done=j.total;j.status='conf';repGet(i).sent=true;save();toast(j.ref+' marked complete');render();}
+function insSendReport(i){const r=repGet(i);r.sent=true;logAct('📄','Completion report sent — '+JOBS[i].ref);save();toast('Completion report PDF emailed to office & client');render();}
+function insComplete(i){const j=JOBS[i];j.stage=4;j.done=j.total;j.status='conf';repGet(i).sent=true;logAct('🏁',j.ref+' '+j.client+' marked complete');save();toast(j.ref+' marked complete');render();}
 async function addInsPhotos(i,input){const key='ins'+i;const n=input.files.length;if(!n)return;toast('Uploading '+n+' photo(s)…');uploaded[key]=uploaded[key]||[];const urls=await uploadAll(input.files);uploaded[key].push(...urls);save();render();toast(urls.length+' photo(s) added');}
 
 /* ---- site check-measure page ---- */
@@ -1126,7 +1305,7 @@ function cmNotes(i,k,val){cmGet(i).areas[k].notes=val;save();}
 function cmReady(i,key,el){const c=cmGet(i);c.ready[key]=!c.ready[key];if(el)el.classList.toggle('on',c.ready[key]);save();}
 function cmAddArea(i){const c=cmGet(i);const blank={name:'New area',walls:[{id:'A',len:''}],ceiling:'',floorLevel:'',services:[],appliances:[],benchtop:{mat:'',edge:'',sink:'',taps:''},splash:{h:'',mat:''},photos:[],notes:''};c.areas.push(blank);document.getElementById('cmAreas').insertAdjacentHTML('beforeend',areaCard(i,blank,c.areas.length-1));save();toast('Area added');}
 async function cmAddPhoto(i,k,input){const c=cmGet(i);const cont=document.getElementById('cmph-'+i+'-'+k);const n=input.files.length;if(!n)return;toast('Uploading '+n+' photo(s)…');const urls=await uploadAll(input.files);urls.forEach(u=>{c.areas[k].photos.push(u);if(cont){const d=document.createElement('div');d.className='thumb';d.style.backgroundImage="url('"+u+"')";cont.insertBefore(d,cont.lastElementChild);}});save();toast(urls.length+' photo(s) added');}
-function cmComplete(i){if(JOBS[i].stage<1)JOBS[i].stage=1;save();toast('Check-measure complete — PDF generated, sent to drafting');setTimeout(()=>go('job',i),900);}
+function cmComplete(i){if(JOBS[i].stage<1)JOBS[i].stage=1;logAct('📏','Check-measure complete — '+JOBS[i].ref);save();toast('Check-measure complete — PDF generated, sent to drafting');setTimeout(()=>go('job',i),900);}
 // Build a simple top-down plan from the wall runs (turns 90° at each corner).
 function areaDiagram(a){
   const walls=(a.walls||[]).map(w=>({id:w.id,len:parseInt(String(w.len).replace(/[^0-9]/g,''))||1000}));
@@ -1239,6 +1418,7 @@ function confirmBooking(){
   if(JOBS[i].status==='new')JOBS[i].status='sched';
   INSTALLER_BUSY[code]=INSTALLER_BUSY[code]||[];
   for(let d=start;d<=(end||start);d++){const iso='2026-07-'+String(d).padStart(2,'0');if(!INSTALLER_BUSY[code].includes(iso))INSTALLER_BUSY[code].push(iso);}
+  logAct('📅',installer(code).name+' booked — '+JOBS[i].ref+' · '+rangeLabel(start,end));
   save(); closeSheet(); toast(installer(code).name+' booked · '+rangeLabel(start,end)); render();
 }
 function viewInstallSchedule(){
@@ -1278,7 +1458,7 @@ function openDrafterPicker(i){
   <div class="muted" style="font-size:14px;margin:2px 0 8px">${esc(JOBS[i].ref)} ${esc(JOBS[i].client)}</div>
   ${TEAM.drafters.map(d=>`<div class="pickrow" onclick="pickDrafter(${i},'${d.code}')"><div class="avatar">${d.initials}</div><div style="flex:1"><div style="font-weight:700">${esc(d.name)}</div><div class="muted" style="font-size:13px">${drafterLoad(d.code)} job(s) in drafting</div></div>${JOBS[i].drafter===d.code?'<span style="color:var(--accent);font-weight:800">✓</span>':''}</div>`).join('')}
   <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeSheet()">Cancel</button>`;openSheet();}
-function pickDrafter(i,code){JOBS[i].drafter=code;dfGet(i);if(JOBS[i].stage<1)JOBS[i].stage=1;save();closeSheet();toast(drafter(code).name+' assigned to drafting');render();}
+function pickDrafter(i,code){JOBS[i].drafter=code;dfGet(i);if(JOBS[i].stage<1)JOBS[i].stage=1;logAct('✏️',drafter(code).name+' assigned to draft '+JOBS[i].ref);save();closeSheet();toast(drafter(code).name+' assigned to drafting');render();}
 function dfSetStatus(i,s){dfGet(i).status=s;if(s==='approved')JOBS[i].stage=Math.max(JOBS[i].stage,2);save();render();}
 function openAddRevision(i){
   const df=dfGet(i),nx=String.fromCharCode(65+df.revisions.length);
@@ -1296,10 +1476,11 @@ function dfAddRevision(i){
   const nx=String.fromCharCode(65+df.revisions.length);
   df.revisions.push({rev:nx,date:'Today',note,state:'current'});
   if(df.status==='approved')df.status='review'; // a new rev needs re-approval
+  logAct('📐','Rev '+nx+' created — '+JOBS[i].ref);
   save();closeSheet();window._planRev=nx;toast('Rev '+nx+' created');go('plan',i);
 }
 async function dfAddDrawing(i,input){const df=dfGet(i);const files=[...input.files];const n=files.length;if(!n)return;toast('Uploading '+n+' drawing(s)…');for(const f of files){const u=await uploadFile(f);df.drawings.push({t:f.name,url:u||''});}save();toast(n+' drawing(s) uploaded');render();}
-function dfSend(i){dfGet(i).status='review';JOBS[i].stage=Math.max(JOBS[i].stage,1);save();toast('Sent to '+esc(JOBS[i].client)+' for sign-off');go('client',i);}
+function dfSend(i){dfGet(i).status='review';JOBS[i].stage=Math.max(JOBS[i].stage,1);logAct('📤','Sent for sign-off — '+JOBS[i].ref+' '+JOBS[i].client);save();toast('Sent to '+esc(JOBS[i].client)+' for sign-off');go('client',i);}
 function viewDrafting(i){
   const j=JOBS[i],df=dfGet(i),d=drafter(j.drafter),st=df.status;
   return `<div class="wrap">
@@ -1331,7 +1512,7 @@ function viewDrafting(i){
     <div style="height:8px"></div>
   </div>`;
 }
-function clientApprove(i){dfGet(i).status='approved';JOBS[i].stage=Math.max(JOBS[i].stage,2);save();toast('Design approved — sent to production');render();}
+function clientApprove(i){dfGet(i).status='approved';JOBS[i].stage=Math.max(JOBS[i].stage,2);logAct('✅','Design approved — '+JOBS[i].ref+' '+JOBS[i].client);save();toast('Design approved — sent to production');render();}
 
 /* ---- documents hub ---- */
 const DOC_CATS=[
@@ -1361,6 +1542,110 @@ function viewDocs(i){
   </div>`;
 }
 
+/* ---- production & delivery ---- */
+const PROD_STEPS=['Materials ordered','Cutting & machining','Assembly','Quality check','Ready for delivery'];
+const PROD_MATERIALS=['Board — carcass, doors & panels','Benchtop slabs','Hardware, hinges & runners','Appliances received'];
+function prodGet(i){
+  if(!DB.prod[i]){
+    const done=JOBS[i].stage>=3;
+    const started=done||JOBS[i].stage>=2||dfGet(i).status==='approved';
+    DB.prod[i]={steps:done?PROD_STEPS.length:(started?1:0),
+      mats:PROD_MATERIALS.map(()=>done||started),
+      delivery:{date:done?JOBS[i].date:'',booked:done}};
+    save();
+  }
+  return DB.prod[i];
+}
+function prodSummary(i){
+  const p=prodGet(i);
+  return p.steps+'/'+PROD_STEPS.length+' factory steps · '+p.mats.filter(Boolean).length+'/'+p.mats.length+' materials · '+(p.delivery.booked?'delivery '+p.delivery.date:'delivery not booked');
+}
+function prodSetStep(i,k){
+  const p=prodGet(i);p.steps=(p.steps===k+1)?k:k+1;
+  if(p.steps>=PROD_STEPS.length)logAct('🏭',JOBS[i].ref+' ready for delivery');
+  save();render();
+}
+function prodToggleMat(i,k,el){const p=prodGet(i);p.mats[k]=!p.mats[k];if(el)el.classList.toggle('on',p.mats[k]);save();}
+function prodBookDelivery(i){
+  const p=prodGet(i);const d=($('#prodDate')&&$('#prodDate').value.trim())||JOBS[i].date;
+  p.delivery={date:d,booked:true};JOBS[i].stage=Math.max(JOBS[i].stage,3);save();
+  logAct('🚚','Delivery booked — '+JOBS[i].ref+' · '+d);toast('Delivery booked · '+d);render();
+}
+function prodUnbook(i){prodGet(i).delivery.booked=false;save();render();}
+function viewProduction(i){
+  const j=JOBS[i],p=prodGet(i),pct=Math.round(p.steps/PROD_STEPS.length*100);
+  return `<div class="wrap">
+    <div class="back" onclick="go('job',${i})">‹ ${esc(j.ref)} ${esc(j.client)}</div>
+    <h2>Production &amp; delivery</h2>
+    <div class="muted" style="margin-bottom:4px">${esc(j.ref)} ${esc(j.client)} · ${esc(j.builder)}</div>
+    <div class="banner"><div><b>${p.steps>=PROD_STEPS.length?'Ready for delivery':(p.steps?esc(PROD_STEPS[p.steps-1]):'Not started')}</b><div class="s">${pct}% through the factory</div></div></div>
+    <div class="card"><b>Factory progress</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Tap the latest completed step.</div>
+      ${PROD_STEPS.map((s,k)=>`<div class="chk ${k<p.steps?'on':''}" onclick="prodSetStep(${i},${k})"><span class="box">✓</span>${esc(s)}</div>`).join('')}
+    </div>
+    <div class="card"><b>Materials</b><div class="muted" style="font-size:13px;margin:2px 0 6px">Everything ordered &amp; received for this job.</div>
+      ${PROD_MATERIALS.map((m,k)=>`<div class="chk ${p.mats[k]?'on':''}" onclick="prodToggleMat(${i},${k},this)"><span class="box">✓</span>${esc(m)}</div>`).join('')}
+    </div>
+    <div class="card"><b>Delivery to site</b>
+      ${p.delivery.booked?`<div class="row" style="margin-top:8px"><span class="kdot"></span><div><div style="font-weight:700">Booked · ${esc(p.delivery.date)}</div><div class="muted" style="font-size:13px">Site: ${esc(j.addr)}</div></div></div>
+        <button class="btn ghost" style="width:100%;margin-top:10px" onclick="prodUnbook(${i})">Change delivery</button>`
+      :`<label class="fld">Delivery date</label><input class="tf" id="prodDate" placeholder="${esc(j.date)}" value="${esc(p.delivery.date)}">
+        <button class="btn primary" style="margin-top:10px" onclick="prodBookDelivery(${i})">🚚 Book delivery</button>
+        <div class="muted" style="font-size:13px;margin-top:8px">Booking delivery moves the job to the Install stage.</div>`}
+    </div>
+    <div style="height:8px"></div></div>`;
+}
+
+/* ---- maintenance & warranty ---- */
+function maintOpenCount(){return DB.maint.filter(m=>m.status!=='done').length;}
+function openMaintRequest(i){
+  $('#sheet').innerHTML=`<div class="grab"></div><b style="font-size:19px">Request a service visit</b>
+    <div class="muted" style="font-size:14px;margin:2px 0 8px">${esc(JOBS[i].ref)} · covered by your 7-year workmanship warranty.</div>
+    <textarea class="tf" id="maintText" style="min-height:96px" placeholder="Describe the issue — e.g. door out of alignment, drawer sticking…"></textarea>
+    <button class="btn primary" style="margin-top:10px" onclick="createMaint(${i})">Send request</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="closeSheet()">Cancel</button>`;
+  openSheet();
+}
+function createMaint(i){
+  const t=($('#maintText').value||'').trim();if(!t){toast('Describe the issue first');return;}
+  DB.maint.unshift({id:DB.maint.reduce((n,m)=>Math.max(n,m.id),0)+1,job:i,issue:t,status:'open',by:isClient()?'client':'office',at:'Just now',installer:null});
+  logAct('🔧','Service request — '+JOBS[i].ref+': '+t.slice(0,60));
+  save();closeSheet();toast('Service request sent — the office will schedule a visit');render();
+}
+function openMaintAssign(mi){
+  const m=DB.maint[mi],j=JOBS[m.job];
+  $('#sheet').innerHTML=`<div class="grab"></div><b style="font-size:19px">Schedule service visit</b>
+    <div class="muted" style="font-size:14px;margin:2px 0 8px">${esc(j.ref)} ${esc(j.client)} · ${esc(m.issue)}</div>
+    ${TEAM.installers.map(t=>`<div class="pickrow" onclick="maintAssign(${mi},'${t.code}')"><div class="avatar">${t.initials}</div><div style="flex:1"><div style="font-weight:700">${esc(t.name)}</div><div class="muted" style="font-size:13px">${installerLoad(t.code)} job(s) booked</div></div>${m.installer===t.code?'<span style="color:var(--accent);font-weight:800">✓</span>':''}</div>`).join('')}
+    <button class="btn ghost" style="width:100%;margin-top:14px" onclick="closeSheet()">Cancel</button>`;
+  openSheet();
+}
+function maintAssign(mi,code){
+  const m=DB.maint[mi];m.installer=code;m.status='scheduled';save();closeSheet();
+  logAct('🔧','Service visit scheduled — '+JOBS[m.job].ref+' · '+installer(code).name);
+  toast(installer(code).name+' scheduled for the service visit');render();
+}
+function maintClose(mi){
+  const m=DB.maint[mi];m.status='done';save();
+  logAct('✅','Service request resolved — '+JOBS[m.job].ref);toast('Marked resolved');render();
+}
+function viewMaintenance(){
+  const mb={open:['b-new','Open'],scheduled:['b-sched','Scheduled'],done:['b-conf','Resolved']};
+  return `<div class="wrap">
+    <div class="back" onclick="go('reports')">‹ Reports</div>
+    <h2>Maintenance &amp; warranty</h2><div class="sub">Service requests from clients and completed installs.</div>
+    ${DB.maint.length?DB.maint.map((m,mi)=>{const j=JOBS[m.job];if(!j)return '';const ins=m.installer?installer(m.installer):null;const b=mb[m.status];return `<div class="job">
+      <div class="row"><h3 style="flex:1;font-size:18px">${esc(j.ref)} ${esc(j.client)}</h3><span class="badge ${b[0]}">${b[1]}</span></div>
+      <div class="meta">Raised by ${m.by==='client'?'the client':'the office'} · ${esc(m.at)}</div>
+      <div class="line">🔧 ${esc(m.issue)}</div>
+      <div class="line">📍 ${esc(j.addr)}</div>
+      ${ins?`<div class="line">👷 ${esc(ins.name)} scheduled</div>`:''}
+      <div class="row" style="margin-top:10px"><span class="spacer"></span>
+        ${m.status==='open'?`<button class="pill accent on" onclick="openMaintAssign(${mi})">Schedule installer</button>`:''}
+        ${m.status==='scheduled'?`<button class="pill" onclick="openMaintAssign(${mi})">Reassign</button><button class="pill accent on" onclick="maintClose(${mi})">Mark resolved</button>`:''}
+      </div></div>`;}).join(''):'<div class="muted" style="padding:16px 2px">No service requests.</div>'}
+    <div style="height:8px"></div></div>`;
+}
+
 /* ---------------- router ---------------- */
 let state={tab:'jobs',arg:null};
 let _animate=false;
@@ -1386,6 +1671,11 @@ function render(){
   else if(t==='client')app.innerHTML=viewClient(state.arg);
   else if(t==='plan')app.innerHTML=viewPlan(state.arg);
   else if(t==='installer')app.innerHTML=viewInstaller(state.arg);
+  else if(t==='production')app.innerHTML=viewProduction(state.arg);
+  else if(t==='insights')app.innerHTML=viewInsights();
+  else if(t==='activity')app.innerHTML=viewActivity();
+  else if(t==='clientco')app.innerHTML=viewClientCo(state.arg);
+  else if(t==='maintenance')app.innerHTML=viewMaintenance();
   else if(t==='calendar')app.innerHTML=viewCalendar();
   else if(t==='clients')app.innerHTML=viewClients();
   else if(t==='reports')app.innerHTML=viewReports();
@@ -1393,7 +1683,7 @@ function render(){
   else app.innerHTML=(currentRole==='office')?viewJobs():(isClient()?viewClient(clientJobIndex()):(isDrafter()?viewDrafterHome(currentRole):viewInstallerHome(currentRole)));
   if(_animate){const c=app.firstElementChild;if(c)c.classList.add('anim-in');_animate=false;}
   let activeTab;
-  if(currentRole==='office') activeTab=['job','checkmeasure','installsched','drafting','docs'].includes(t)?'jobs':((t==='client'||t==='plan')?'clients':(t==='installer'?'reports':t));
+  if(currentRole==='office') activeTab=['job','checkmeasure','installsched','drafting','docs','production','insights','activity'].includes(t)?'jobs':(['client','plan','clientco'].includes(t)?'clients':((t==='installer'||t==='maintenance')?'reports':t));
   else activeTab=(t==='calendar')?'calendar':(t==='settings')?'settings':'jobs';
   const tabs=currentRole==='office'?OFFICE_TABS:(isClient()?CLIENT_TABS:STAFF_TABS);
   $('#tabbar').innerHTML=tabs.map(([k,ic,l])=>`<button class="tab ${activeTab===k?'on':''}" onclick="go('${k}')"><span class="ic">${ICONS[k]||ic}</span>${l}</button>`).join('');

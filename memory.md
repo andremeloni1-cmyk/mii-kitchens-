@@ -42,3 +42,19 @@ dashboard fed by an Apps Script → Base44 sync.
   real ones with `scripts/setpw.js`.
 - No "create job from scratch in the UI" yet — jobs arrive via calendar sync;
   admin edits stage/assignment after. A manual job-create form is a possible add.
+  *(Done in the demo — the office "＋ New job" sheet; the real API still lacks it.)*
+
+## Demo build-out (July 2026 pass)
+
+The `public/index.html` demo gained: a Production & delivery stage (factory
+steps, materials checklist, delivery booking — booking bumps `stage` to 3),
+office Insights (📊 bar charts; teal excluded from chart fills — fails contrast
+validation on both surfaces), an activity feed behind the 🔔 bell
+(`DB.activity`/`DB.actSeen`, written by `logAct` from ~14 actions), tappable
+client-company pages with contacts + per-company jobs (`companyJobs` matches
+builder exactly or client-name prefix), a manual New Job sheet, and a
+maintenance/warranty module (`DB.maint`: client requests a visit → office
+schedules an installer → resolved; surfaces on installer home as service
+calls). `shiftKeyed()` now also bumps `insN` photo keys and `maint[].job`
+pointers when a job is unshifted. New DB keys are backfilled in `loadDB` so
+existing saved demos migrate.
