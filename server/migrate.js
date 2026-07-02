@@ -12,6 +12,10 @@ const mysql = require('mysql2/promise');
 
 async function runMigrations() {
   const sql = fs.readFileSync(path.join(__dirname, '..', 'db', 'schema.sql'), 'utf8');
+  // A blank password is fine locally, but never in production.
+  if (process.env.NODE_ENV === 'production' && !process.env.DB_PASSWORD) {
+    throw new Error('DB_PASSWORD is required in production — set it in .env.');
+  }
   // A dedicated connection with multipleStatements — NOT the app pool, which
   // keeps multipleStatements off for safety.
   const conn = await mysql.createConnection({

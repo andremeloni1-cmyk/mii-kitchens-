@@ -11,22 +11,42 @@ const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 
-const { loadUser } = require('./auth');
+const { loadUser, requireAuth } = require('./auth');
 
 const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1); // behind nginx
 
+// Fail fast if the session secret isn't configured — never fall back to a
+// hardcoded default (that would let anyone forge/replay session cookies).
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  throw new Error('SESSION_SECRET is required — set it in .env before starting.');
+}
+
+// Baseline security headers on every response (no helmet dependency available).
+// CSP permits inline script/style because the dashboard (public/*.html) relies
+// on inline <script>/<style> and on* handlers; tighten if those are removed.
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+  next();
+});
+
 app.use(express.json({ limit: '1mb' }));
 app.use(session({
   name: 'mhub.sid',
-  secret: process.env.SESSION_SECRET || 'dev-insecure-secret',
+  secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.COOKIE_SECURE === '1',
+    secure: process.env.COOKIE_SECURE === '1' || process.env.NODE_ENV === 'production',
     maxAge: 1000 * 60 * 60 * 12 // 12h
   }
 }));
@@ -53,12 +73,15 @@ const EXT_BY_MIME = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
   'image/gif': 'gif', 'image/heic': 'heic', 'application/pdf': 'pdf'
 };
-app.post('/api/upload', express.json({ limit: '35mb' }), (req, res) => {
+app.post('/api/upload', requireAuth, express.json({ limit: '35mb' }), (req, res) => {
   const data = req.body && req.body.data;
   const m = typeof data === 'string' && data.match(/^data:([^;]+);base64,(.+)$/s);
   if (!m) return res.status(400).json({ error: 'bad_upload' });
   const mime = m[1];
-  const ext = EXT_BY_MIME[mime] || (mime.split('/')[1] || 'bin').replace(/[^a-z0-9]/gi, '');
+  // Strict allowlist: only known image/PDF types. No client-derived extensions
+  // (an .html fallback would let an authed user store active content on-origin).
+  const ext = EXT_BY_MIME[mime];
+  if (!ext) return res.status(400).json({ error: 'unsupported_type' });
   const buf = Buffer.from(m[2], 'base64');
   if (buf.length > 35 * 1024 * 1024) return res.status(413).json({ error: 'too_large' });
   const name = crypto.randomBytes(9).toString('hex') + '.' + ext;
@@ -75,7 +98,14 @@ app.post('/api/upload', express.json({ limit: '35mb' }), (req, res) => {
 app.use('/api', (_req, res) => res.status(404).json({ error: 'not_found' }));
 
 // Static assets (dashboard + shared libs + uploaded files).
-app.use('/uploads', express.static(uploadsDir, { maxAge: '1y', immutable: true }));
+app.use('/uploads', express.static(uploadsDir, {
+  maxAge: '1y', immutable: true,
+  // Never render uploaded files inline as active content on our origin.
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', 'attachment');
+  }
+}));
 app.use('/shared', express.static(path.join(__dirname, '..', 'shared')));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -90,7 +120,8 @@ app.use((err, _req, res, _next) => {
 // this file is run directly; the test suite imports `app` without starting it.
 function start() {
   const port = Number(process.env.PORT || 3000);
-  const listen = () => app.listen(port, () => console.log('Mii Kitchens Hub listening on :' + port));
+  // Bind to loopback only — nginx proxies to 127.0.0.1:3000 (see deploy/nginx.conf.sample).
+  const listen = () => app.listen(port, '127.0.0.1', () => console.log('Mii Kitchens Hub listening on :' + port));
   if (process.env.AUTO_MIGRATE === '1') {
     return require('./migrate').runMigrations()
       .then(() => { console.log('Schema applied (AUTO_MIGRATE).'); listen(); })

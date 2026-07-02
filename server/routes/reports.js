@@ -2,6 +2,7 @@
 const express = require('express');
 const { requireAuth } = require('../auth');
 const db = require('../db');
+const jobsRepo = require('../jobsRepo');
 
 const router = express.Router();
 
@@ -48,8 +49,12 @@ router.get('/', requireAuth, async (req, res, next) => {
 router.post('/', requireAuth, async (req, res, next) => {
   try {
     const b = req.body || {};
+    // Only let the caller write a report for a job they may view. 404 (not 403)
+    // to avoid leaking the existence of jobs outside their scope (mirrors jobs/:ref).
+    const scopedJob = await jobsRepo.getByReference(b.job_reference);
+    if (!jobsRepo.canView(req.user, scopedJob)) return res.status(404).json({ error: 'job_not_found' });
+    // getByReference maps away the numeric id (the report FK) — fetch it directly.
     const job = await db.queryOne('SELECT id FROM jobs WHERE job_reference = :ref', { ref: b.job_reference });
-    if (!job) return res.status(404).json({ error: 'job_not_found' });
 
     // Deterministic id keyed by job + author, so saving repeatedly updates one row.
     const reportId = 'R-' + b.job_reference + '-' + req.user.employee_code;
