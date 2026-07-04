@@ -9,6 +9,7 @@ const assert = require('node:assert');
 const request = require('supertest');
 
 process.env.SYNC_SECRET = process.env.SYNC_SECRET || 'test-secret';
+process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'test-secret';
 const app = require('../server/index.js');
 
 test('GET /api/auth/me is 401 when not logged in', async () => {

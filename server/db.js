@@ -10,6 +10,11 @@ let pool;
 
 function getPool() {
   if (!pool) {
+    // A blank password is fine locally, but never in production — fail fast
+    // rather than silently connecting (or failing) with an empty credential.
+    if (process.env.NODE_ENV === 'production' && !process.env.DB_PASSWORD) {
+      throw new Error('DB_PASSWORD is required in production — set it in .env.');
+    }
     pool = mysql.createPool({
       host: process.env.DB_HOST || '127.0.0.1',
       port: Number(process.env.DB_PORT || 3306),

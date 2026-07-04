@@ -40,8 +40,16 @@ router.post('/login', async (req, res, next) => {
     const emp = await auth.findByEmail(email);
     const ok = emp && await auth.verifyPassword(password, emp.password_hash);
     if (!ok) return res.status(401).json({ error: 'invalid_credentials' });
-    req.session.uid = emp.id;
-    res.json({ user: auth.publicUser(emp) });
+    // Regenerate the session on login to prevent session fixation (any pre-login
+    // session id is discarded before we associate the account).
+    req.session.regenerate((err) => {
+      if (err) return next(err);
+      req.session.uid = emp.id;
+      req.session.save((err2) => {
+        if (err2) return next(err2);
+        res.json({ user: auth.publicUser(emp) });
+      });
+    });
   } catch (e) { next(e); }
 });
 

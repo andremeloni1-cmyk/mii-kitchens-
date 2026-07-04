@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const crypto = require('crypto');
 const { requireAuth, requireRole } = require('../auth');
 const db = require('../db');
 const jobsRepo = require('../jobsRepo');
@@ -45,7 +46,7 @@ router.post('/', requireRole('admin'), async (req, res, next) => {
       ? (await db.queryOne('SELECT id FROM jobs WHERE job_reference = :ref', { ref: b.job_reference }))?.id || null
       : null;
     const empId = b.employee_code ? await jobsRepo.employeeIdByCode(b.employee_code) : null;
-    const meetingId = b.meeting_id || ('M-' + Date.now() + '-' + Math.floor(Math.random() * 1e4));
+    const meetingId = b.meeting_id || ('M-' + crypto.randomUUID());
 
     await db.execute(
       `INSERT INTO meetings (meeting_id, type, job_id, employee_id, title, starts_at, ends_at, location, notes, gcal_event_id)
